@@ -323,6 +323,34 @@ function AppearanceSection() {
   );
 }
 
+/** 窗口大小会在调整后自动记住；这里可以一键回到默认大小 */
+function WindowSizeRow() {
+  const [size, setSize] = useState<[number, number] | null>(null);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (isTauri) call<[number, number]>("default_window_size").then(setSize);
+  }, []);
+  if (!isTauri) return null;
+  return (
+    <div className="set-row">
+      <div>
+        <b>窗口大小</b>
+        <div className="muted small">调整或移动窗口后会自动记住，下次启动按上次的大小和位置打开</div>
+      </div>
+      <button
+        className="btn"
+        onClick={async () => {
+          await call("reset_window_size");
+          setDone(true);
+          window.setTimeout(() => setDone(false), 1500);
+        }}
+      >
+        {done ? "已恢复" : `恢复默认大小${size ? `（${size[0]}×${size[1]}）` : ""}`}
+      </button>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const s = useStore((x) => x.settings);
   const [autostart, setAutostart] = useState<boolean | null>(null);
@@ -353,6 +381,7 @@ export default function SettingsPage() {
 
       <div className="card">
         <h4>窗口</h4>
+        <WindowSizeRow />
         <label className="set-row">
           <div>
             <b>桌面挂件模式</b>

@@ -8,7 +8,7 @@ mod storage;
 mod wallpaper;
 mod we_scene;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::window::Color;
@@ -17,6 +17,43 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 /// 桌面挂件模式：窗口置于最底层、不显示在任务栏
 static DESKTOP_MODE: AtomicBool = AtomicBool::new(false);
+
+/// 默认窗口大小（逻辑像素）。首次启动、或点“恢复默认大小”时使用
+const DEFAULT_SIZE: (f64, f64) = (1260.0, 888.0);
+
+/// 窗口最近一次移动 / 缩放的时间（毫秒），用于停下来 1 秒后自动保存窗口大小和位置
+static LAST_GEOMETRY_CHANGE: AtomicU64 = AtomicU64::new(0);
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// 调整或移动窗口停下 1 秒后保存一次，不必等到退出（程序异常退出也不会丢）
+fn autosave_window_state(app: AppHandle) {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        let t = LAST_GEOMETRY_CHANGE.load(Ordering::Relaxed);
+        if t != 0 && now_ms().saturating_sub(t) >= 1000 {
+            LAST_GEOMETRY_CHANGE.store(0, Ordering::Relaxed);
+            let _ = app.save_window_state(state_flags());
+        }
+    });
+}
+
+#[tauri::command]
+fn reset_window_size(app: AppHandle) {
+    if let Some(w) = main_window(&app) {
+        let _ = w.unmaximize();
+        let _ = w.set_size(tauri::LogicalSize::new(DEFAULT_SIZE.0, DEFAULT_SIZE.1));
+        let _ = w.center();
+        LAST_GEOMETRY_CHANGE.store(now_ms(), Ordering::Relaxed);
+    }
+}
+
+#[tauri::command]
+fn default_window_size() -> (f64, f64) {
+    DEFAULT_SIZE
+}
 
 /// 本次启动的窗口是否是透明窗口
 static TRANSPARENT: AtomicBool = AtomicBool::new(false);
@@ -28,7 +65,7 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
     TRANSPARENT.store(transparent, Ordering::Relaxed);
     let mut b = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("桌面看板")
-        .inner_size(1180.0, 780.0)
+        .inner_size(DEFAULT_SIZE.0, DEFAULT_SIZE.1)
         .min_inner_size(420.0, 360.0)
         .decorations(false)
         .center()
@@ -149,6 +186,7 @@ pub fn run() {
         ))
         .setup(|app| {
             create_main_window(app.handle())?;
+            autosave_window_state(app.handle().clone());
             #[cfg(windows)]
             watch_foreground(app.handle().clone());
             let show = MenuItem::with_id(app, "show", "显示看板", true, None::<&str>)?;
@@ -181,6 +219,9 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
+            WindowEvent::Resized(_) | WindowEvent::Moved(_) => {
+                LAST_GEOMETRY_CHANGE.store(now_ms(), Ordering::Relaxed);
+            }
             // 关闭窗口时隐藏到托盘，真正退出走托盘菜单；顺便保存窗口位置
             WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
@@ -193,6 +234,8 @@ pub fn run() {
             set_desktop_mode,
             is_transparent_window,
             restart_app,
+            reset_window_size,
+            default_window_size,
             minimize_main,
             storage::load_data,
             storage::save_data,
