@@ -8,7 +8,8 @@ export type WidgetType =
   | "notes"
   | "project"
   | "ai"
-  | "news";
+  | "news"
+  | "github";
 
 export interface WidgetInst {
   id: string;
@@ -155,6 +156,8 @@ export interface Palette {
 }
 
 export interface Background {
+  id?: string; // 壁纸库里的条目 id
+  thumb?: string; // 缩略图路径
   kind: "preset" | "image" | "video" | "transparent" | "scene";
   preset?: string;
   file?: string; // 本地绝对路径
@@ -167,6 +170,8 @@ export interface Background {
 export interface Settings {
   theme: "auto" | "light" | "dark"; // auto = 按壁纸亮度
   background: Background;
+  library: Background[]; // 导入过的壁纸，显示在壁纸选项里
+  seeded?: string[]; // 已自动加入过壁纸库的默认壁纸
   accent?: string; // 手动指定强调色，空表示从壁纸自动取
   iconStyle: "palette" | "mono";
   glass: number; // 小组件不透明度 0.3-1
@@ -200,7 +205,19 @@ export interface AppData {
     usage: Record<string, UsageSnap>;
     feeds: Record<string, FeedCache>;
     claudeCode?: { ts: number; rows: ClaudeCodeRow[]; error?: string };
+    github?: Record<string, { ts: number; items: GithubRepo[]; error?: string }>;
   };
 }
 
-export type PageKey = "notes" | "calendar" | "tasks" | "projects" | "ai" | "news" | "settings";
+export type PageKey = "notes" | "calendar" | "tasks" | "projects" | "ai" | "news" | "github" | "settings";
+
+export interface GithubRepo {
+  name: string;
+  url: string;
+  description: string;
+  language?: string;
+  color?: string;
+  stars: number;
+  forks: number;
+  period_stars?: number;
+}

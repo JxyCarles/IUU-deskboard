@@ -39,6 +39,8 @@ pub struct Imported {
     note: Option<String>,
     /// 场景壁纸所在的文件夹
     dir: Option<String>,
+    /// 壁纸库里显示的缩略图
+    thumb: Option<String>,
 }
 
 fn ext_of(p: &Path) -> String {
@@ -152,6 +154,14 @@ pub fn palette_of_rgba(img: &image::RgbaImage) -> Result<Palette, String> {
 // ---------- Wallpaper Engine ----------
 
 fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
+    let mut r = import_we_inner(app, dir)?;
+    if r.thumb.is_none() {
+        r.thumb = we_preview(dir).and_then(|p| make_thumb(app, &p).ok()).map(|p| p.display().to_string());
+    }
+    Ok(r)
+}
+
+fn import_we_inner(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
     let text = fs::read_to_string(dir.join("project.json")).map_err(|_| "这个文件夹里没有 project.json，不是 Wallpaper Engine 壁纸".to_string())?;
     let v: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("project.json 解析失败：{e}"))?;
     let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or("").to_lowercase();
@@ -166,7 +176,7 @@ fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
     if kind == "video" {
         let file = v.get("file").and_then(|f| f.as_str()).ok_or("project.json 里没有视频文件")?;
         let src = dir.join(file);
-        let dest = copy_in(app, "wallpapers", &src, true)?;
+        let dest = copy_in(app, "wallpapers", &src, false)?;
         return Ok(Imported {
             kind: "video".into(),
             file: Some(dest.display().to_string()),
@@ -174,12 +184,16 @@ fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
             title,
             note: None,
             dir: None,
+            thumb: None,
         });
     }
     if kind == "scene" {
         match crate::we_scene::load_scene(app, dir, &Default::default()) {
             Ok(scene) if !scene_is_empty(&scene) => {
-                let palette = scene.into_palette().or(palette);
+                let (scene_palette, scene_thumb) = scene.into_parts();
+                let palette = scene_palette.or(palette);
+                // 用还原出来的画面做缩略图，比 Wallpaper Engine 自带的预览图（常带宣传字）更干净
+                let thumb = scene_thumb.and_then(|t| make_thumb(app, &t).ok()).map(|p| p.display().to_string());
                 return Ok(Imported {
                     kind: "scene".into(),
                     file: None,
@@ -187,6 +201,7 @@ fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
                     title,
                     note: None,
                     dir: Some(dir.display().to_string()),
+                    thumb,
                 })
             }
             Ok(_) => {}
@@ -203,6 +218,7 @@ fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
             if kind.is_empty() { "未知" } else { &kind }
         )),
         dir: None,
+        thumb: None,
     })
 }
 
@@ -218,13 +234,14 @@ pub async fn import_wallpaper(app: AppHandle, path: String) -> Result<Imported, 
         }
         let ext = ext_of(&p);
         if IMAGE_EXT.contains(&ext.as_str()) {
-            let dest = copy_in(&app, "wallpapers", &p, true)?;
+            let dest = copy_in(&app, "wallpapers", &p, false)?;
             let palette = palette_of(&dest).ok();
-            return Ok(Imported { kind: "image".into(), file: Some(dest.display().to_string()), palette, title: None, note: None, dir: None });
+            let thumb = make_thumb(&app, &dest).ok().map(|p| p.display().to_string());
+            return Ok(Imported { kind: "image".into(), file: Some(dest.display().to_string()), palette, title: None, note: None, dir: None, thumb });
         }
         if VIDEO_EXT.contains(&ext.as_str()) {
-            let dest = copy_in(&app, "wallpapers", &p, true)?;
-            return Ok(Imported { kind: "video".into(), file: Some(dest.display().to_string()), palette: None, title: None, note: None, dir: None });
+            let dest = copy_in(&app, "wallpapers", &p, false)?;
+            return Ok(Imported { kind: "video".into(), file: Some(dest.display().to_string()), palette: None, title: None, note: None, dir: None, thumb: None });
         }
         Err(format!("不支持的文件类型：.{ext}"))
     })
@@ -253,4 +270,36 @@ pub fn import_font(app: AppHandle, path: String) -> Result<ImportedFont, String>
 
 fn scene_is_empty(s: &crate::we_scene::SceneDesc) -> bool {
     s.layer_count() == 0
+}
+
+// ---------- 缩略图与壁纸库 ----------
+
+/// 生成 360px 宽的静态 PNG 缩略图（GIF 取第一帧）
+fn make_thumb(app: &AppHandle, src: &Path) -> Result<PathBuf, String> {
+    let img = image::open(src).map_err(|e| e.to_string())?;
+    let dir = sub_dir(app, "thumbs")?;
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let dest = dir.join(format!("{stamp}.png"));
+    img.thumbnail(360, 240).save(&dest).map_err(|e| e.to_string())?;
+    Ok(dest)
+}
+
+fn we_preview(dir: &Path) -> Option<PathBuf> {
+    let text = fs::read_to_string(dir.join("project.json")).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let p = dir.join(v.get("preview")?.as_str()?);
+    p.exists().then_some(p)
+}
+
+/// 从壁纸库移除时删除复制进来的文件（只允许删除应用自己目录下的文件）
+#[tauri::command]
+pub fn remove_wallpaper_files(app: AppHandle, files: Vec<String>) -> Result<(), String> {
+    let root = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    for f in files {
+        let p = PathBuf::from(&f);
+        if p.starts_with(&root) {
+            let _ = fs::remove_file(p);
+        }
+    }
+    Ok(())
 }

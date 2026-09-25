@@ -19,6 +19,7 @@ function defaultData(): AppData {
       { id: uid(), type: "tasks", size: "m", config: {} },
       { id: uid(), type: "notes", size: "m", config: {} },
       { id: uid(), type: "news", size: "l", config: {} },
+      { id: uid(), type: "github", size: "l", config: {} },
     ],
     notes: [
       {
@@ -66,6 +67,7 @@ function defaultData(): AppData {
     settings: {
       theme: "auto",
       background: { kind: "preset", preset: "dusk" },
+      library: [],
       iconStyle: "palette",
       glass: 0.72,
       dim: 0.15,

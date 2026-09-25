@@ -3,18 +3,10 @@ import { call, isTauri } from "../api";
 import { FONTS, loadAllFonts, schemeOf } from "../fonts";
 import { Icon } from "../icons";
 import { setSettings, useStore } from "../store";
-import { loadScene, type SceneProp } from "../scene";
+import { assetUrl, loadScene, type SceneProp } from "../scene";
 import { currentPalette, PRESETS } from "../theme";
-import type { Background, Palette } from "../types";
-
-interface Imported {
-  kind: Background["kind"];
-  file?: string;
-  palette?: Palette;
-  title?: string;
-  note?: string;
-  dir?: string;
-}
+import { applyWallpaper, importToLibrary, removeFromLibrary, updateBackground } from "../wallpapers";
+import type { Background } from "../types";
 
 const IMG_EXT = ["png", "jpg", "jpeg", "webp", "bmp", "gif"];
 const VIDEO_EXT = ["mp4", "webm", "m4v", "mov"];
@@ -95,6 +87,32 @@ function FontSection() {
   );
 }
 
+function LibraryThumb({ e, on }: { e: Background; on: boolean }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    if (e.thumb) assetUrl(e.thumb).then(setSrc);
+  }, [e.thumb]);
+  const label = e.title ?? (e.kind === "video" ? "自定义视频" : e.kind === "scene" ? "场景壁纸" : "自定义图片");
+  return (
+    <div className={"wp-thumb lib-thumb" + (on ? " on" : "")} title={label} onClick={() => applyWallpaper(e)}>
+      {src ? <img src={src} alt="" /> : <div className="lib-fallback" />}
+      {e.kind === "scene" && <i className="lib-badge">场景</i>}
+      {e.kind === "video" && <i className="lib-badge">视频</i>}
+      <span>{label}</span>
+      <button
+        className="lib-del"
+        title="从壁纸选项中移除"
+        onClick={(ev) => {
+          ev.stopPropagation();
+          removeFromLibrary(e.id!);
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 function SceneSection() {
   const s = useStore((x) => x.settings);
   const bg = s.background;
@@ -107,7 +125,7 @@ function SceneSection() {
       .catch((e) => setErr(String(e)));
   }, [bg.dir, JSON.stringify(bg.props ?? {})]);
 
-  const setProp = (k: string, v: string | boolean) => setSettings({ background: { ...bg, props: { ...(bg.props ?? {}), [k]: v } } });
+  const setProp = (k: string, v: string | boolean) => updateBackground({ props: { ...(bg.props ?? {}), [k]: v } });
 
   return (
     <div className="scene-box">
@@ -176,16 +194,12 @@ function AppearanceSection() {
     if (!path) return;
     setBusy(true);
     try {
-      const r = await call<Imported>("import_wallpaper", { path });
-      setSettings({
-        background: { kind: r.kind, file: r.file, palette: r.palette, title: r.title, dir: r.dir },
-        accent: undefined,
-        ...(r.kind === "transparent" ? { desktopMode: true } : {}),
-      });
+      const { entry: r, note } = await importToLibrary(path);
+      applyWallpaper(r);
       setMsg(
-        r.note
-          ? { text: r.note }
-          : { text: `已应用${r.title ? "「" + r.title + "」" : ""}，配色已根据壁纸自动生成。${r.kind === "scene" ? "下面可以切换它的主题和开关。" : ""}` },
+        note
+          ? { text: note }
+          : { text: `已加入壁纸选项并应用${r.title ? "「" + r.title + "」" : ""}，配色已根据壁纸自动生成。${r.kind === "scene" ? "下面可以切换它的主题和开关。" : ""}` },
       );
     } catch (e) {
       setMsg({ text: String(e), err: true });
@@ -200,7 +214,7 @@ function AppearanceSection() {
         {Object.entries(PRESETS).map(([k, p]) => (
           <button
             key={k}
-            className={"wp-thumb" + (bg.kind === "preset" && bg.preset === k ? " on" : "")}
+            className={"wp-thumb" + (p.palette.luminance > 0.6 ? " light" : "") + (bg.kind === "preset" && bg.preset === k ? " on" : "")}
             style={{ background: p.css }}
             onClick={() => setSettings({ background: { kind: "preset", preset: k }, accent: undefined })}
           >
@@ -214,11 +228,9 @@ function AppearanceSection() {
         >
           <span>透明</span>
         </button>
-        {(bg.kind === "image" || bg.kind === "video" || bg.kind === "scene") && (
-          <div className="wp-thumb on custom-thumb">
-            <span>{bg.title ?? (bg.kind === "video" ? "自定义视频" : "自定义图片")}</span>
-          </div>
-        )}
+        {s.library.map((e) => (
+          <LibraryThumb key={e.id} e={e} on={bg.id === e.id} />
+        ))}
       </div>
       <div className="row wrap">
         <button className="btn primary" disabled={!isTauri || busy} onClick={() => doImport(false)}>

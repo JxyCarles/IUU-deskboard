@@ -57,6 +57,14 @@ const PATHS = {
       <path d="M2 14h4M10 8h4M18 16h4" />
     </>
   ),
+  github: (
+    <>
+      <circle cx="6.5" cy="5.5" r="2.2" />
+      <circle cx="6.5" cy="18.5" r="2.2" />
+      <circle cx="17.5" cy="8.5" r="2.2" />
+      <path d="M6.5 7.7v8.6M17.5 10.7c0 4-4 4.3-11 5.6" />
+    </>
+  ),
   plus: <path d="M12 5v14M5 12h14" />,
   refresh: (
     <>

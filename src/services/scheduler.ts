@@ -3,6 +3,7 @@ import { isTauri, notify } from "../api";
 import { getState } from "../store";
 import { toMin, today } from "../utils";
 import { refreshAllFeeds } from "./feeds";
+import { refreshAllTrending } from "./github";
 import { refreshAllProviders } from "./providers";
 
 const notified = new Set<string>();
@@ -37,6 +38,7 @@ export function startScheduler() {
     if (isTauri && now - lastFeed >= s.feedRefreshMin * 60_000) {
       lastFeed = now;
       refreshAllFeeds();
+      refreshAllTrending();
     }
     checkReminders();
   };

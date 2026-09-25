@@ -1,11 +1,13 @@
 import type { FC } from "react";
 import type { IconName } from "../icons";
+import { LANGUAGES } from "../services/github";
 import { patch, useStore } from "../store";
 import type { PageKey, WidgetInst, WidgetSize, WidgetType } from "../types";
 import AgendaWidget from "./AgendaWidget";
 import AIWidget from "./AIWidget";
 import CalendarWidget from "./CalendarWidget";
 import ClockWidget from "./ClockWidget";
+import GithubWidget from "./GithubWidget";
 import type { WidgetProps } from "./common";
 import NewsWidget from "./NewsWidget";
 import NotesWidget from "./NotesWidget";
@@ -67,6 +69,31 @@ const AIConfig: FC<{ w: WidgetInst }> = ({ w }) => {
   );
 };
 
+const GithubConfig: FC<{ w: WidgetInst }> = ({ w }) => (
+  <>
+    <Select
+      w={w}
+      k="since"
+      label="时间范围"
+      options={[
+        { value: "", label: "今日" },
+        { value: "weekly", label: "本周" },
+        { value: "monthly", label: "本月" },
+      ]}
+    />
+    <Select w={w} k="language" label="语言" options={LANGUAGES.map((l) => ({ value: l, label: l || "全部语言" }))} />
+    <Select
+      w={w}
+      k="mode"
+      label="数据来源"
+      options={[
+        { value: "", label: "Trending 页面（与网页一致）" },
+        { value: "api", label: "GitHub Search API（近似）" },
+      ]}
+    />
+  </>
+);
+
 const NewsConfig: FC<{ w: WidgetInst }> = ({ w }) => {
   const feeds = useStore((s) => s.feeds);
   return (
@@ -83,6 +110,7 @@ export const WIDGETS: WidgetDef[] = [
   { type: "project", name: "项目", desc: "单个项目的概况与待办/进行中/完成，或全部项目总览", icon: "project", color: "var(--c-project)", sizes: ["s", "m", "l", "xl"], page: "projects", Component: ProjectWidget, Config: ProjectConfig },
   { type: "ai", name: "AI 额度", desc: "DeepSeek / GLM / Claude 余额与用量", icon: "ai", color: "var(--c-ai)", sizes: ["s", "m", "l", "xl"], page: "ai", Component: AIWidget, Config: AIConfig },
   { type: "news", name: "资讯", desc: "RSS 资讯聚合", icon: "news", color: "var(--c-news)", sizes: ["s", "m", "l", "xl"], page: "news", Component: NewsWidget, Config: NewsConfig },
+  { type: "github", name: "GitHub 热门", desc: "GitHub Trending：今日 / 本周 / 本月热门仓库，可按语言筛选", icon: "github", color: "var(--c-github)", sizes: ["s", "m", "l", "xl"], page: "github", Component: GithubWidget, Config: GithubConfig },
 ];
 
 export const widgetDef = (t: WidgetType) => WIDGETS.find((d) => d.type === t)!;

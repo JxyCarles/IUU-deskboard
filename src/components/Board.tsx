@@ -21,6 +21,8 @@ interface Drag {
   target: Rect;
   size: WidgetSize;
   moved: boolean;
+  /** 拖动开始时每个组件实际显示的位置 */
+  base: WidgetInst[];
 }
 
 interface Menu {
@@ -193,23 +195,19 @@ export default function Board({ editing, setEditing, onAdd }: { editing: boolean
   const { cols, cell } = grid;
   const unit = cell + GAP;
   const rects = useMemo(
-    () => (drag?.moved ? resolve(widgets, cols, drag.target) : resolve(widgets, cols)),
+    () => (drag?.moved ? resolve(drag.base, cols, drag.target) : resolve(widgets, cols)),
     [widgets, cols, drag],
   );
   const rows = Math.max(1, ...rects.map((r) => r.y + r.h)) + (editing ? 1 : 0);
-
-  // 还没有坐标的组件（新数据、自动整理后）按当前排布把坐标存下来，之后拖动时其它组件才会留在原地
-  useEffect(() => {
-    if (!ready || drag || widgets.every((w) => w.x !== undefined && w.y !== undefined)) return;
-    const pos = new Map(resolve(widgets, cols).map((r) => [r.id, r]));
-    setState((s) => ({ ...s, widgets: s.widgets.map((w) => ({ ...w, x: pos.get(w.id)?.x ?? w.x, y: pos.get(w.id)?.y ?? w.y })) }));
-  }, [widgets, cols, ready, drag]);
 
   const beginDrag = (id: string, mode: Drag["mode"], px: number, py: number) => {
     const orig = rects.find((r) => r.id === id);
     const w = widgets.find((x) => x.id === id);
     if (!orig || !w) return;
-    const d: Drag = { id, mode, px, py, dx: 0, dy: 0, orig, target: orig, size: w.size, moved: false };
+    // 没拖过的组件平时按窗口宽度自动排列；开始拖动时才把当前显示的位置固定下来
+    const pos = new Map(rects.map((r) => [r.id, r]));
+    const base = widgets.map((x) => ({ ...x, x: pos.get(x.id)?.x ?? x.x, y: pos.get(x.id)?.y ?? x.y }));
+    const d: Drag = { id, mode, px, py, dx: 0, dy: 0, orig, target: orig, size: w.size, moved: false, base };
     dragRef.current = d;
     setDrag(d);
 
@@ -244,7 +242,7 @@ export default function Board({ editing, setEditing, onAdd }: { editing: boolean
       if (!cur?.moved) return;
       suppressClick.current = true;
       // 把这次操作后的布局写回每个组件
-      const sized = widgets.map((x) => (x.id === cur.id ? { ...x, size: cur.size } : x));
+      const sized = cur.base.map((x) => (x.id === cur.id ? { ...x, size: cur.size } : x));
       const final = resolve(sized, cols, cur.target);
       const pos = new Map(final.map((r) => [r.id, r]));
       setState((s) => ({

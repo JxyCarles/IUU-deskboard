@@ -1,5 +1,6 @@
 mod claude_code;
 mod feeds;
+mod github;
 mod http;
 mod providers;
 mod secrets;
@@ -126,6 +127,8 @@ pub fn run() {
             feeds::fetch_feed,
             wallpaper::import_wallpaper,
             wallpaper::import_font,
+            wallpaper::remove_wallpaper_files,
+            github::github_trending,
             we_scene::we_scene,
         ])
         .run(tauri::generate_context!())

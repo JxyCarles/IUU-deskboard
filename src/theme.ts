@@ -75,7 +75,7 @@ export const PRESETS: Record<string, Preset> = {
 
 // ---------- 主题生成 ----------
 
-export const MODULES = ["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "settings"] as const;
+export const MODULES = ["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "github", "settings"] as const;
 export type ModuleKey = (typeof MODULES)[number];
 
 export function currentPalette(s: Settings): Palette {

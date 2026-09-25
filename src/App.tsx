@@ -8,6 +8,7 @@ import { applyFont } from "./fonts";
 import { Icon, type IconName } from "./icons";
 import AIPage from "./pages/AIPage";
 import CalendarPage from "./pages/CalendarPage";
+import GithubPage from "./pages/GithubPage";
 import NewsPage from "./pages/NewsPage";
 import NotesPage from "./pages/NotesPage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -18,6 +19,7 @@ import { setSettings, useStore } from "./store";
 import { buildTheme, isDark, paletteFromPixels, wallpaperCss } from "./theme";
 import type { PageKey, Settings } from "./types";
 import { dayInfo, WEEK } from "./utils";
+import { seedLibrary } from "./wallpapers";
 import { NavContext } from "./widgets/common";
 
 const PAGES: { key: PageKey; name: string; icon: IconName; color: string }[] = [
@@ -27,6 +29,7 @@ const PAGES: { key: PageKey; name: string; icon: IconName; color: string }[] = [
   { key: "projects", name: "项目", icon: "project", color: "var(--c-project)" },
   { key: "ai", name: "AI 额度", icon: "ai", color: "var(--c-ai)" },
   { key: "news", name: "资讯", icon: "news", color: "var(--c-news)" },
+  { key: "github", name: "GitHub", icon: "github", color: "var(--c-github)" },
   { key: "settings", name: "设置", icon: "settings", color: "var(--c-settings)" },
 ];
 
@@ -44,6 +47,8 @@ function PageView({ page, arg }: { page: PageKey; arg?: string }) {
       return <AIPage />;
     case "news":
       return <NewsPage />;
+    case "github":
+      return <GithubPage />;
     case "settings":
       return <SettingsPage />;
   }
@@ -158,6 +163,9 @@ export default function App() {
   const nav = useMemo(() => ({ open: (key: PageKey, arg?: string) => setPage({ key, arg }) }), []);
 
   useEffect(() => startScheduler(), []);
+  useEffect(() => {
+    seedLibrary();
+  }, []);
 
   // 主题：从壁纸配色生成整套颜色变量
   useEffect(() => {

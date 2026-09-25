@@ -378,17 +378,22 @@ fn baked_puppet(pkg: &Pkg, mdl: &str, atlas_file: &Path, w: f32, h: f32, cache: 
 }
 
 /// 按实际画面合成一张 1/8 缩略图再取色，结果按可见图层组合缓存
-fn scene_palette(layers: &[Layer], width: f32, height: f32, clear: [f32; 3], cache: &Path) -> Option<Palette> {
+/// 返回（配色，整体画面缩略图）
+fn scene_palette(layers: &[Layer], width: f32, height: f32, clear: [f32; 3], cache: &Path) -> (Option<Palette>, Option<PathBuf>) {
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     for l in layers {
         l.id.hash(&mut hasher);
         l.file.hash(&mut hasher);
     }
-    let cached = cache.join(format!("palette-{:x}.json", hasher.finish()));
-    if let Some(p) = fs::read(&cached).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()) {
-        if let Ok(p) = serde_json::from_value::<PaletteIn>(p) {
-            return Some(p.into());
+    let h = hasher.finish();
+    let cached = cache.join(format!("palette-{h:x}.json"));
+    let thumb = cache.join(format!("thumb-{h:x}.png"));
+    if thumb.exists() {
+        if let Some(p) = fs::read(&cached).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()) {
+            if let Ok(p) = serde_json::from_value::<PaletteIn>(p) {
+                return (Some(p.into()), Some(thumb));
+            }
         }
     }
     let k = 0.125f32;
@@ -406,9 +411,10 @@ fn scene_palette(layers: &[Layer], width: f32, height: f32, clear: [f32; 3], cac
         }
         image::imageops::overlay(&mut canvas, &faded, (l.m[4] * k) as i64, (l.m[5] * k) as i64);
     }
-    let p = palette_of_rgba(&canvas).ok()?;
+    let Ok(p) = palette_of_rgba(&canvas) else { return (None, None) };
     let _ = fs::write(&cached, serde_json::to_vec(&p).unwrap_or_default());
-    Some(p)
+    let thumb = canvas.save(&thumb).ok().map(|_| thumb);
+    (Some(p), thumb)
 }
 
 #[derive(serde::Deserialize)]
@@ -550,6 +556,8 @@ pub struct SceneDesc {
     layers: Vec<Layer>,
     props: Vec<Prop>,
     palette: Option<Palette>,
+    #[serde(skip)]
+    thumb: Option<PathBuf>,
 }
 
 struct Ctx<'a> {
@@ -790,7 +798,7 @@ fn load_scene_in(dir: &Path, cache: &Path, overrides: &HashMap<String, Value>) -
         .collect();
     prop_list.sort_by_key(|p| (p.kind != "combo", p.key.clone()));
 
-    let palette = scene_palette(&layers, width, height, [cr, cg, cb], cache);
+    let (palette, thumb) = scene_palette(&layers, width, height, [cr, cg, cb], cache);
 
     Ok(SceneDesc {
         title: project.get("title").and_then(|t| t.as_str()).unwrap_or("").to_string(),
@@ -800,6 +808,7 @@ fn load_scene_in(dir: &Path, cache: &Path, overrides: &HashMap<String, Value>) -
         layers,
         props: prop_list,
         palette,
+        thumb,
     })
 }
 
@@ -807,8 +816,9 @@ impl SceneDesc {
     pub fn layer_count(&self) -> usize {
         self.layers.len()
     }
-    pub fn into_palette(self) -> Option<Palette> {
-        self.palette
+    /// (配色, 画面缩略图)
+    pub fn into_parts(self) -> (Option<Palette>, Option<PathBuf>) {
+        (self.palette, self.thumb)
     }
 }
 
