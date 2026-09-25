@@ -2920,3 +2920,137 @@ html.resizing .widget,
 html.resizing .board.ready .widget {
   transition: none !important;
 }
+
+/* ============ 资讯（按来源分组） ============ */
+.news-groups {
+  display: grid;
+  gap: 4px 18px;
+  align-content: start;
+  min-height: 0;
+  overflow: hidden;
+}
+.news-groups.cols-1 {
+  grid-template-columns: 1fr;
+}
+.news-groups.cols-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.news-groups.cols-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.news-sec {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+.news-sec-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 2px 0 4px;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.news-sec-h i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex: none;
+}
+.news-sec-h:hover {
+  text-decoration: underline;
+}
+.news-sec-more {
+  opacity: 0.6;
+  font-weight: 400;
+}
+.news-groups .news-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+}
+.news-groups .news-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.news-time {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.news-groups .news-item:hover .news-title {
+  color: var(--accent);
+}
+/* 资讯源管理 */
+.src-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex: none;
+}
+.src-name {
+  gap: 6px;
+  min-width: 0;
+}
+.src-tools {
+  gap: 2px;
+}
+.drag-grip {
+  cursor: grab;
+  color: var(--text-3);
+}
+.side-item.dragging-src {
+  opacity: 0.4;
+}
+.side-item.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.src-tag {
+  font-weight: 600;
+}
+/* 快速浏览 */
+.reader-source {
+  border: none;
+  background: none;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+.reader-source:hover {
+  text-decoration: underline;
+}
+.reader h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  line-height: 1.35;
+}
+.reader-body {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 1.8;
+  user-select: text;
+}
+.reader-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+.reader-body a {
+  color: var(--accent);
+}
+.reader-body pre {
+  white-space: pre-wrap;
+}

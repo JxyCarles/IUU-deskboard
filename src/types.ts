@@ -137,6 +137,7 @@ export interface FeedItem {
   link: string;
   published?: string;
   summary?: string;
+  content?: string; // 正文 HTML，只在内存里保留
 }
 
 export interface FeedCache {

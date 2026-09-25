@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { call, currentWindow, isTauri } from "./api";
 import AddWidgetSheet from "./components/AddWidgetSheet";
 import Board from "./components/Board";
+import FeedReader from "./components/FeedReader";
 import SceneWall from "./components/SceneWall";
 import Sheet from "./components/Sheet";
 import { applyFont } from "./fonts";
@@ -46,7 +47,7 @@ function PageView({ page, arg }: { page: PageKey; arg?: string }) {
     case "ai":
       return <AIPage />;
     case "news":
-      return <NewsPage />;
+      return <NewsPage arg={arg} />;
     case "github":
       return <GithubPage />;
     case "settings":
@@ -245,6 +246,7 @@ export default function App() {
           <PageView key={page.key + (page.arg ?? "")} page={page.key} arg={page.arg} />
         </Sheet>
       )}
+      <FeedReader />
     </NavContext.Provider>
   );
 }
