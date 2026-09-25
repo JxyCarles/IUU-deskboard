@@ -23,6 +23,12 @@ pub struct Palette {
     luminance: f32,
 }
 
+impl Palette {
+    pub fn new(colors: Vec<(String, f32)>, luminance: f32) -> Palette {
+        Palette { colors: colors.into_iter().map(|(hex, weight)| Swatch { hex, weight }).collect(), luminance }
+    }
+}
+
 #[derive(Serialize)]
 pub struct Imported {
     /// image / video / transparent
@@ -31,6 +37,8 @@ pub struct Imported {
     palette: Option<Palette>,
     title: Option<String>,
     note: Option<String>,
+    /// 场景壁纸所在的文件夹
+    dir: Option<String>,
 }
 
 fn ext_of(p: &Path) -> String {
@@ -74,8 +82,12 @@ fn dist2(a: &[f32; 3], b: &[f32; 3]) -> f32 {
 
 pub fn palette_of(path: &Path) -> Result<Palette, String> {
     let img = image::open(path).map_err(|e| format!("无法读取图片：{e}"))?;
-    let rgb = img.thumbnail(96, 96).to_rgb8();
-    let mut px: Vec<[f32; 3]> = rgb.pixels().map(|p| [p[0] as f32, p[1] as f32, p[2] as f32]).collect();
+    palette_of_rgba(&img.thumbnail(96, 96).to_rgba8())
+}
+
+/// 透明像素不参与取色（否则带透明区域的图层会被算成偏黑）
+pub fn palette_of_rgba(img: &image::RgbaImage) -> Result<Palette, String> {
+    let mut px: Vec<[f32; 3]> = img.pixels().filter(|p| p[3] >= 128).map(|p| [p[0] as f32, p[1] as f32, p[2] as f32]).collect();
     if px.is_empty() {
         return Err("图片为空".into());
     }
@@ -161,7 +173,25 @@ fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
             palette,
             title,
             note: None,
+            dir: None,
         });
+    }
+    if kind == "scene" {
+        match crate::we_scene::load_scene(app, dir, &Default::default()) {
+            Ok(scene) if !scene_is_empty(&scene) => {
+                let palette = scene.into_palette().or(palette);
+                return Ok(Imported {
+                    kind: "scene".into(),
+                    file: None,
+                    palette,
+                    title,
+                    note: None,
+                    dir: Some(dir.display().to_string()),
+                })
+            }
+            Ok(_) => {}
+            Err(e) => eprintln!("场景解析失败，改用透明模式：{e}"),
+        }
     }
     Ok(Imported {
         kind: "transparent".into(),
@@ -172,6 +202,7 @@ fn import_we(app: &AppHandle, dir: &Path) -> Result<Imported, String> {
             "这是「{}」类型的壁纸，只能由 Wallpaper Engine 渲染。已切换为透明模式：请在 Wallpaper Engine 里继续使用它，看板会浮在动态壁纸上方，并按它的预览图配色。",
             if kind.is_empty() { "未知" } else { &kind }
         )),
+        dir: None,
     })
 }
 
@@ -189,11 +220,11 @@ pub async fn import_wallpaper(app: AppHandle, path: String) -> Result<Imported, 
         if IMAGE_EXT.contains(&ext.as_str()) {
             let dest = copy_in(&app, "wallpapers", &p, true)?;
             let palette = palette_of(&dest).ok();
-            return Ok(Imported { kind: "image".into(), file: Some(dest.display().to_string()), palette, title: None, note: None });
+            return Ok(Imported { kind: "image".into(), file: Some(dest.display().to_string()), palette, title: None, note: None, dir: None });
         }
         if VIDEO_EXT.contains(&ext.as_str()) {
             let dest = copy_in(&app, "wallpapers", &p, true)?;
-            return Ok(Imported { kind: "video".into(), file: Some(dest.display().to_string()), palette: None, title: None, note: None });
+            return Ok(Imported { kind: "video".into(), file: Some(dest.display().to_string()), palette: None, title: None, note: None, dir: None });
         }
         Err(format!("不支持的文件类型：.{ext}"))
     })
@@ -218,4 +249,8 @@ pub fn import_font(app: AppHandle, path: String) -> Result<ImportedFont, String>
         file: dest.display().to_string(),
         name: p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "自定义字体".into()),
     })
+}
+
+fn scene_is_empty(s: &crate::we_scene::SceneDesc) -> bool {
+    s.layer_count() == 0
 }

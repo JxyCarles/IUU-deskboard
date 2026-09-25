@@ -72,6 +72,8 @@ function defaultData(): AppData {
       blur: 0,
       font: "rounded",
       showDock: true,
+      sceneMotion: true,
+      sceneParallax: true,
       cellSize: 150,
       desktopMode: false,
       alwaysOnTop: false,

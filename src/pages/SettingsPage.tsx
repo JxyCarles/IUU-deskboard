@@ -3,6 +3,7 @@ import { call, isTauri } from "../api";
 import { FONTS, loadAllFonts, schemeOf } from "../fonts";
 import { Icon } from "../icons";
 import { setSettings, useStore } from "../store";
+import { loadScene, type SceneProp } from "../scene";
 import { currentPalette, PRESETS } from "../theme";
 import type { Background, Palette } from "../types";
 
@@ -12,6 +13,7 @@ interface Imported {
   palette?: Palette;
   title?: string;
   note?: string;
+  dir?: string;
 }
 
 const IMG_EXT = ["png", "jpg", "jpeg", "webp", "bmp", "gif"];
@@ -93,6 +95,70 @@ function FontSection() {
   );
 }
 
+function SceneSection() {
+  const s = useStore((x) => x.settings);
+  const bg = s.background;
+  const [props, setProps] = useState<SceneProp[]>([]);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (!bg.dir) return;
+    loadScene(bg.dir, bg.props ?? {})
+      .then((d) => setProps(d.props))
+      .catch((e) => setErr(String(e)));
+  }, [bg.dir, JSON.stringify(bg.props ?? {})]);
+
+  const setProp = (k: string, v: string | boolean) => setSettings({ background: { ...bg, props: { ...(bg.props ?? {}), [k]: v } } });
+
+  return (
+    <div className="scene-box">
+      <div className="muted small">场景壁纸：{bg.title}</div>
+      {err && <div className="err">{err}</div>}
+      {props.map((p) =>
+        p.kind === "combo" ? (
+          <div key={p.key} className="set-row">
+            <b>{p.label}</b>
+            <div className="seg">
+              {p.options.map((o) => (
+                <button key={o.value} className={String(p.value) === o.value ? "on" : ""} onClick={() => setProp(p.key, o.value)}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <label key={p.key} className="set-row">
+            <b>{p.label}</b>
+            <span className="switch">
+              <input type="checkbox" checked={p.value === true || p.value === "1" || p.value === "true"} onChange={(e) => setProp(p.key, e.target.checked)} />
+              <span />
+            </span>
+          </label>
+        ),
+      )}
+      <label className="set-row">
+        <div>
+          <b>动效</b>
+          <div className="muted small">给头发、藤蔓、气泡、眼泪加上轻微的摆动和漂浮</div>
+        </div>
+        <span className="switch">
+          <input type="checkbox" checked={s.sceneMotion} onChange={() => setSettings({ sceneMotion: !s.sceneMotion })} />
+          <span />
+        </span>
+      </label>
+      <label className="set-row">
+        <div>
+          <b>鼠标视差</b>
+          <div className="muted small">移动鼠标时图层有前后景深的错位</div>
+        </div>
+        <span className="switch">
+          <input type="checkbox" checked={s.sceneParallax} onChange={() => setSettings({ sceneParallax: !s.sceneParallax })} />
+          <span />
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function AppearanceSection() {
   const s = useStore((x) => x.settings);
   const bg = s.background;
@@ -112,11 +178,15 @@ function AppearanceSection() {
     try {
       const r = await call<Imported>("import_wallpaper", { path });
       setSettings({
-        background: { kind: r.kind, file: r.file, palette: r.palette, title: r.title },
+        background: { kind: r.kind, file: r.file, palette: r.palette, title: r.title, dir: r.dir },
         accent: undefined,
         ...(r.kind === "transparent" ? { desktopMode: true } : {}),
       });
-      setMsg(r.note ? { text: r.note } : { text: `已应用${r.title ? "「" + r.title + "」" : ""}，配色已根据壁纸自动生成。` });
+      setMsg(
+        r.note
+          ? { text: r.note }
+          : { text: `已应用${r.title ? "「" + r.title + "」" : ""}，配色已根据壁纸自动生成。${r.kind === "scene" ? "下面可以切换它的主题和开关。" : ""}` },
+      );
     } catch (e) {
       setMsg({ text: String(e), err: true });
     }
@@ -144,7 +214,7 @@ function AppearanceSection() {
         >
           <span>透明</span>
         </button>
-        {(bg.kind === "image" || bg.kind === "video") && (
+        {(bg.kind === "image" || bg.kind === "video" || bg.kind === "scene") && (
           <div className="wp-thumb on custom-thumb">
             <span>{bg.title ?? (bg.kind === "video" ? "自定义视频" : "自定义图片")}</span>
           </div>
@@ -161,8 +231,9 @@ function AppearanceSection() {
       </div>
       {msg && <div className={msg.err ? "err" : "note"}>{msg.text}</div>}
       <p className="muted tiny">
-        Wallpaper Engine 的「视频」壁纸会直接导入播放；「场景 / 网页」壁纸只能由 Wallpaper Engine 自己渲染，会切换为透明模式浮在它上面，并按预览图配色。
+        Wallpaper Engine 壁纸：选 workshop\content\431960\ 下的数字文件夹。「视频」类型直接播放；「场景」类型会读取它的图层还原成壁纸（粒子、着色器特效等无法还原，用近似动效代替）；「网页」类型切换为透明模式。
       </p>
+      {bg.kind === "scene" && <SceneSection />}
 
       <h4>配色</h4>
       <div className="field">

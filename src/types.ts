@@ -155,9 +155,11 @@ export interface Palette {
 }
 
 export interface Background {
-  kind: "preset" | "image" | "video" | "transparent";
+  kind: "preset" | "image" | "video" | "transparent" | "scene";
   preset?: string;
   file?: string; // 本地绝对路径
+  dir?: string; // Wallpaper Engine 场景壁纸文件夹
+  props?: Record<string, string | boolean>; // 场景壁纸的属性（主题、气泡开关等）
   title?: string;
   palette?: Palette; // 从壁纸提取的配色
 }
@@ -173,6 +175,8 @@ export interface Settings {
   font: string;
   customFont?: { name: string; file: string };
   showDock: boolean;
+  sceneMotion: boolean; // 场景壁纸动效
+  sceneParallax: boolean; // 场景壁纸鼠标视差
   cellSize: number; // 网格最小格子边长 px
   desktopMode: boolean; // 置于桌面底层、不显示在任务栏
   alwaysOnTop: boolean;

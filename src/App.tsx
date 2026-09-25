@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { currentWindow, isTauri } from "./api";
+import { call, currentWindow, isTauri } from "./api";
 import AddWidgetSheet from "./components/AddWidgetSheet";
 import Board from "./components/Board";
+import SceneWall from "./components/SceneWall";
 import Sheet from "./components/Sheet";
 import { applyFont } from "./fonts";
 import { Icon, type IconName } from "./icons";
@@ -95,6 +96,7 @@ function Wallpaper({ s }: { s: Settings }) {
       {bg.kind === "preset" && <div className="wall-media" style={{ background: wallpaperCss(s), ...media }} />}
       {bg.kind === "image" && url && <img className="wall-media" src={url} style={media} alt="" />}
       {bg.kind === "video" && url && <video className="wall-media" src={url} style={media} autoPlay loop muted playsInline />}
+      {bg.kind === "scene" && <SceneWall bg={bg} motion={s.sceneMotion} parallax={s.sceneParallax} blur={s.blur} />}
       <div className="wall-dim" style={{ opacity: s.dim }} />
     </div>
   );
@@ -106,7 +108,7 @@ function TitleBar({ editing, setEditing, onAdd }: { editing: boolean; setEditing
   const winAction = async (a: "min" | "max" | "hide") => {
     const w = await currentWindow();
     if (!w) return;
-    if (a === "min") w.minimize();
+    if (a === "min") call("minimize_main"); // 挂件模式下会改为隐藏到托盘
     else if (a === "max") w.toggleMaximize();
     else w.hide();
   };
@@ -174,8 +176,7 @@ export default function App() {
   useEffect(() => {
     currentWindow().then((w) => {
       if (!w) return;
-      w.setAlwaysOnBottom(settings.desktopMode);
-      w.setSkipTaskbar(settings.desktopMode);
+      call("set_desktop_mode", { enabled: settings.desktopMode });
       w.setAlwaysOnTop(!settings.desktopMode && settings.alwaysOnTop);
     });
   }, [settings.desktopMode, settings.alwaysOnTop]);
