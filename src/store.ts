@@ -124,14 +124,23 @@ export async function loadData() {
   emit();
 }
 
+function writeNow() {
+  const text = JSON.stringify(state);
+  if (isTauri) return call("save_data", { data: text }).catch((e) => console.error("保存失败", e));
+  localStorage.setItem(LS_KEY, text);
+  return Promise.resolve();
+}
+
 function persist() {
   if (!loaded) return;
   window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    const text = JSON.stringify(state);
-    if (isTauri) call("save_data", { data: text }).catch((e) => console.error("保存失败", e));
-    else localStorage.setItem(LS_KEY, text);
-  }, 400);
+  saveTimer = window.setTimeout(writeNow, 400);
+}
+
+/** 立即保存（重启程序前用） */
+export function flushSave() {
+  window.clearTimeout(saveTimer);
+  return writeNow();
 }
 
 function emit() {

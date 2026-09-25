@@ -38,9 +38,17 @@ export default function SceneWall({ bg, motion, parallax, blur }: { bg: Backgrou
   }, [bg.dir, propsKey]);
 
   useLayoutEffect(() => {
-    const onResize = () => setBox({ w: window.innerWidth, h: window.innerHeight });
+    // 调整窗口大小时每帧最多重新布局一次
+    let raf = 0;
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setBox({ w: window.innerWidth, h: window.innerHeight }));
+    };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   // 鼠标视差：只改 CSS 变量，不触发重新渲染

@@ -163,6 +163,21 @@ export default function App() {
   const nav = useMemo(() => ({ open: (key: PageKey, arg?: string) => setPage({ key, arg }) }), []);
 
   useEffect(() => startScheduler(), []);
+
+  // 调整窗口大小期间暂停壁纸动效和布局动画，减轻重绘压力
+  useEffect(() => {
+    let t = 0;
+    const onResize = () => {
+      document.documentElement.classList.add("resizing");
+      window.clearTimeout(t);
+      t = window.setTimeout(() => document.documentElement.classList.remove("resizing"), 250);
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(t);
+    };
+  }, []);
   useEffect(() => {
     seedLibrary();
   }, []);

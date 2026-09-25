@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { call, isTauri } from "../api";
 import { FONTS, loadAllFonts, schemeOf } from "../fonts";
 import { Icon } from "../icons";
-import { setSettings, useStore } from "../store";
+import { flushSave, setSettings, useStore } from "../store";
 import { assetUrl, loadScene, type SceneProp } from "../scene";
 import { currentPalette, PRESETS } from "../theme";
 import { applyWallpaper, importToLibrary, removeFromLibrary, updateBackground } from "../wallpapers";
@@ -108,6 +108,29 @@ function LibraryThumb({ e, on }: { e: Background; on: boolean }) {
         }}
       >
         ×
+      </button>
+    </div>
+  );
+}
+
+/** 透明窗口只能在创建时决定：切换到 / 离开“透明”壁纸后提示重启 */
+function RestartHint({ transparent }: { transparent: boolean }) {
+  const [win, setWin] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (isTauri) call<boolean>("is_transparent_window").then(setWin);
+  }, []);
+  if (win === null || win === transparent) return null;
+  return (
+    <div className="note row between">
+      <span>{transparent ? "透明壁纸需要重启程序后生效。" : "已切换为普通壁纸，重启后窗口恢复为不透明（调整大小更流畅）。"}</span>
+      <button
+        className="btn primary sm"
+        onClick={async () => {
+          await flushSave();
+          call("restart_app");
+        }}
+      >
+        立即重启
       </button>
     </div>
   );
@@ -246,6 +269,7 @@ function AppearanceSection() {
         Wallpaper Engine 壁纸：选 workshop\content\431960\ 下的数字文件夹。「视频」类型直接播放；「场景」类型会读取它的图层还原成壁纸（粒子、着色器特效等无法还原，用近似动效代替）；「网页」类型切换为透明模式。
       </p>
       {bg.kind === "scene" && <SceneSection />}
+      <RestartHint transparent={bg.kind === "transparent"} />
 
       <h4>配色</h4>
       <div className="field">

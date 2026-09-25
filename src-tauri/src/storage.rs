@@ -11,6 +11,16 @@ fn data_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("data.json"))
 }
 
+/// 启动时读取：当前壁纸是否为“透明”模式（决定窗口是否创建为透明窗口）
+pub fn wants_transparent(app: &AppHandle) -> bool {
+    data_path(app)
+        .ok()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .and_then(|v| v.pointer("/settings/background/kind").and_then(|k| k.as_str()).map(|k| k == "transparent"))
+        .unwrap_or(false)
+}
+
 #[tauri::command]
 pub fn load_data(app: AppHandle) -> Result<Option<String>, String> {
     let path = data_path(&app)?;

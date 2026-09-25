@@ -2910,3 +2910,13 @@ textarea.input {
 .gh-period {
   margin-left: auto;
 }
+
+/* 调整窗口大小期间暂停动效，避免重绘跟不上 */
+html.resizing .scene-stage img {
+  animation-play-state: paused !important;
+}
+html.resizing .scene-layer,
+html.resizing .widget,
+html.resizing .board.ready .widget {
+  transition: none !important;
+}

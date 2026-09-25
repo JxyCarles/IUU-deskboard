@@ -10,20 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "桌面看板",
-        "width": 1180,
-        "height": 780,
-        "minWidth": 420,
-        "minHeight": 360,
-        "decorations": false,
-        "transparent": true,
-        "center": true,
-        "dragDropEnabled": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null,
       "assetProtocol": {

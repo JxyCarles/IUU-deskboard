@@ -11,11 +11,43 @@ mod we_scene;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, WebviewWindow, WindowEvent};
+use tauri::window::Color;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 /// 桌面挂件模式：窗口置于最底层、不显示在任务栏
 static DESKTOP_MODE: AtomicBool = AtomicBool::new(false);
+
+/// 本次启动的窗口是否是透明窗口
+static TRANSPARENT: AtomicBool = AtomicBool::new(false);
+
+/// 只有“透明”壁纸需要透明窗口。透明窗口在 Windows 上调整大小时 WebView2 来不及重绘，
+/// 内容会整片消失，所以平时用不透明窗口；透明属性只能在创建窗口时设置，切换后需要重启。
+fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
+    let transparent = storage::wants_transparent(app);
+    TRANSPARENT.store(transparent, Ordering::Relaxed);
+    let mut b = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .title("桌面看板")
+        .inner_size(1180.0, 780.0)
+        .min_inner_size(420.0, 360.0)
+        .decorations(false)
+        .center()
+        .disable_drag_drop_handler();
+    b = if transparent { b.transparent(true) } else { b.background_color(Color(27, 25, 48, 255)) };
+    b.build()?;
+    Ok(())
+}
+
+#[tauri::command]
+fn is_transparent_window() -> bool {
+    TRANSPARENT.load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    let _ = app.save_window_state(state_flags());
+    app.restart();
+}
 
 /// 记住窗口大小、位置、是否最大化；不记“是否可见”，否则隐藏到托盘时退出，下次启动就看不见了
 fn state_flags() -> StateFlags {
@@ -71,6 +103,7 @@ pub fn run() {
             None,
         ))
         .setup(|app| {
+            create_main_window(app.handle())?;
             let show = MenuItem::with_id(app, "show", "显示看板", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
@@ -114,6 +147,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             set_desktop_mode,
+            is_transparent_window,
+            restart_app,
             minimize_main,
             storage::load_data,
             storage::save_data,
