@@ -29,6 +29,9 @@ feed-rs = "2"
 keyring = { version = "3", features = ["windows-native"] }
 chrono = "0.4"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
 [profile.release]
 opt-level = "s"
 lto = true

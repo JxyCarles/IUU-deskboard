@@ -38,6 +38,38 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// 挂件模式下的层级管理：每 250ms 看一次前台窗口是不是看板。
+/// - 变成前台（点了看板、拖边框调整大小）：解除钉底并提到最前，按普通窗口操作；
+/// - 不再是前台（点了别的程序）：钉回最底层。
+/// 不用 WindowEvent::Focused，因为键盘焦点在 WebView 里时，切到别的程序经常收不到失焦事件。
+/// 以前一直钉在底层时，点击看板的“提到前面”会被改写成“放到最底”，拖动调整大小时窗口就被压到其他窗口后面，看起来像消失了。
+#[cfg(windows)]
+fn watch_foreground(app: AppHandle) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+    std::thread::spawn(move || {
+        let mut was_front = true;
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            if !DESKTOP_MODE.load(Ordering::Relaxed) {
+                was_front = true;
+                continue;
+            }
+            let Some(w) = main_window(&app) else { continue };
+            let Ok(hwnd) = w.hwnd() else { continue };
+            let front = unsafe { GetForegroundWindow() } == hwnd.0 as _;
+            if front && !was_front {
+                let _ = w.set_always_on_bottom(false);
+                // 临时置顶再取消，相当于提到普通窗口的最前面
+                let _ = w.set_always_on_top(true);
+                let _ = w.set_always_on_top(false);
+            } else if !front && was_front {
+                let _ = w.set_always_on_bottom(true);
+            }
+            was_front = front;
+        }
+    });
+}
+
 #[tauri::command]
 fn is_transparent_window() -> bool {
     TRANSPARENT.load(Ordering::Relaxed)
@@ -74,9 +106,22 @@ fn show_main(app: &AppHandle) {
 fn set_desktop_mode(app: AppHandle, enabled: bool) {
     DESKTOP_MODE.store(enabled, Ordering::Relaxed);
     if let Some(w) = main_window(&app) {
-        let _ = w.set_always_on_bottom(enabled);
+        // 当前正在操作窗口时先不压到底层，等失去焦点再压
+        let _ = w.set_always_on_bottom(enabled && !is_front(&w));
         let _ = w.set_skip_taskbar(enabled);
     }
+}
+
+fn is_front(w: &WebviewWindow) -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+        if let Ok(h) = w.hwnd() {
+            return unsafe { GetForegroundWindow() } == h.0 as _;
+        }
+    }
+    let _ = w;
+    false
 }
 
 /// 标题栏的“最小化”。挂件模式下没有任务栏按钮，最小化后就找不回来了，所以改成隐藏到托盘
@@ -104,6 +149,8 @@ pub fn run() {
         ))
         .setup(|app| {
             create_main_window(app.handle())?;
+            #[cfg(windows)]
+            watch_foreground(app.handle().clone());
             let show = MenuItem::with_id(app, "show", "显示看板", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
@@ -139,9 +186,6 @@ pub fn run() {
                 api.prevent_close();
                 let _ = window.app_handle().save_window_state(state_flags());
                 let _ = window.hide();
-            }
-            WindowEvent::Focused(false) if DESKTOP_MODE.load(Ordering::Relaxed) => {
-                let _ = window.set_always_on_bottom(true);
             }
             _ => {}
         })
