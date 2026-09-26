@@ -3,3 +3,12 @@ dist
 src-tauri/target
 src-tauri/gen
 *.log
+
+# 本地密钥与个人数据，防止误提交
+.env
+.env.*
+*.pem
+*.key
+data.json
+backups/
+.claude/settings.local.json
