@@ -3667,3 +3667,16 @@ html.resizing .board.ready .widget {
 .news-scroll .news-sec {
   margin-bottom: 8px;
 }
+/* 项目列表：外层量高度，内层按整行对齐 */
+.pj-list-box {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pj-list-box > .pj-list {
+  flex: none;
+}
+.pj-m {
+  gap: 8px !important;
+}

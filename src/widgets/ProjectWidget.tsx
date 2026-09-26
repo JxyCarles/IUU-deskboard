@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { patch, useStore } from "../store";
 import type { ItemStatus, Project, ProjectItem } from "../types";
 import { plain, today } from "../utils";
@@ -57,24 +58,53 @@ ${it.detail}` : it.text}
 }
 
 /** 按状态分组的紧凑列表：进行中 → 待办 → 已完成 */
-function ItemList({ p, groups, compact }: { p: Project; groups: ItemStatus[]; compact?: boolean }) {
+function ItemList({ p, groups, compact, flat }: { p: Project; groups: ItemStatus[]; compact?: boolean; flat?: boolean }) {
+  // 外层占满剩余空间用来量高度；内层滚动区的高度停在“最后一条能完整显示的条目”底部，不露出半行
+  const box = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const outer = box.current;
+    const inner = list.current;
+    if (!outer || !inner) return;
+    const fit = () => {
+      const avail = outer.clientHeight;
+      const top = inner.getBoundingClientRect().top - inner.scrollTop;
+      let h = 0;
+      inner.querySelectorAll(".pj-row, .pj-group-h, .pj-none").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const bottom = r.bottom - top;
+        if (bottom <= avail + 0.5) h = Math.max(h, bottom);
+      });
+      inner.style.height = (h || avail) + "px";
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(outer);
+    return () => ro.disconnect();
+  }, [p.items, groups.join(), flat]);
+
+  const empty = groups.every((st) => !p.items.some((i) => i.status === st));
   return (
-    <div className="w-scroll pj-list">
-      {groups.map((st) => {
-        const items = p.items.filter((i) => i.status === st);
-        if (!items.length) return null;
-        return (
-          <div key={st} className="pj-group">
-            <div className="pj-group-h" style={{ color: STATUS_META[st].color }}>
-              {STATUS_META[st].label} <span>{items.length}</span>
-            </div>
-            {items.map((it) => (
-              <ItemRow key={it.id} p={p} it={it} compact={compact} />
-            ))}
-          </div>
-        );
-      })}
-      {groups.every((st) => !p.items.some((i) => i.status === st)) && <div className="muted small">没有条目，点小组件打开项目添加</div>}
+    <div ref={box} className="pj-list-box">
+      <div ref={list} className="w-scroll pj-list">
+        {flat
+          ? groups.flatMap((st) => p.items.filter((i) => i.status === st)).map((it) => <ItemRow key={it.id} p={p} it={it} compact={compact} />)
+          : groups.map((st) => {
+              const items = p.items.filter((i) => i.status === st);
+              if (!items.length) return null;
+              return (
+                <div key={st} className="pj-group">
+                  <div className="pj-group-h" style={{ color: STATUS_META[st].color }}>
+                    {STATUS_META[st].label} <span>{items.length}</span>
+                  </div>
+                  {items.map((it) => (
+                    <ItemRow key={it.id} p={p} it={it} compact={compact} />
+                  ))}
+                </div>
+              );
+            })}
+        {empty && <div className="muted small pj-none">{groups.includes("done") ? "没有条目，点小组件打开项目添加" : "没有进行中或待办的条目 🎉"}</div>}
+      </div>
     </div>
   );
 }
@@ -199,9 +229,8 @@ export default function ProjectWidget({ w }: WidgetProps) {
     return (
       <div className="pj-m">
         {head}
-        <Bar percent={st.pct} color={p.color} />
         {counts}
-        <ItemList p={p} groups={["doing", "todo"]} compact />
+        <ItemList p={p} groups={["doing", "todo"]} compact flat />
       </div>
     );
   }
