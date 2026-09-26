@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useNow } from "../services/scheduler";
 import { useStore } from "../store";
 import type { CalEvent } from "../types";
-import { addDays, dayInfo, fmtDateLabel, today, toMin, WEEK, ymd } from "../utils";
+import { addDays, dayInfo, fmtDateLabel, holidayKind, holidayText, today, toMin, WEEK, ymd } from "../utils";
 import { stop, useNav, type WidgetProps } from "./common";
 
 /** 从现在起即将发生的日程（今天未结束的 + 之后几天的） */
@@ -42,8 +42,7 @@ function DayBlock({ now, compact }: { now: Date; compact?: boolean }) {
       <div className="cal-num">{now.getDate()}</div>
       <div className="cal-lunar">
         {info.lunarFull}
-        {info.holiday && !info.holiday.work && <span className="tag red">{info.holiday.name}</span>}
-        {info.holiday?.work && <span className="tag">调休上班</span>}
+        {info.holiday && <span className={"tag hol-" + holidayKind(info.holiday)}>{holidayText(info.holiday, "m")}</span>}
       </div>
     </div>
   );
@@ -72,6 +71,10 @@ function MonthGrid({ now, events }: { now: Date; events: CalEvent[] }) {
           d.getMonth() !== now.getMonth() && "out",
           k === t && "today",
           info.holiday && !info.holiday.work && "off",
+          info.holiday?.festivalDay && "fest-day",
+          // 连续假期色带：假期首尾（或每周的首尾）圆角，中间连在一起
+          info.holiday && !info.holiday.work && (info.holiday.index === 1 || d.getDay() === 0) && "band-start",
+          info.holiday && !info.holiday.work && (info.holiday.index === info.holiday.total || d.getDay() === 6) && "band-end",
         ]
           .filter(Boolean)
           .join(" ");

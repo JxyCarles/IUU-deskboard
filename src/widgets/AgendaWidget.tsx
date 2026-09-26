@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useNow } from "../services/scheduler";
 import { patch, useStore } from "../store";
 import type { CalEvent, Task } from "../types";
-import { addDays, dayInfo, toMin, WEEK, ymd } from "../utils";
+import { addDays, dayInfo, holidayKind, holidayText, toMin, WEEK, ymd } from "../utils";
 import { Empty, stop, WHead, type WidgetProps } from "./common";
 
 function sortEvents(a: CalEvent, b: CalEvent) {
@@ -104,7 +104,7 @@ export default function AgendaWidget({ w }: WidgetProps) {
               <div className="ag-week-h">
                 <span>周{WEEK[d.getDay()]}</span>
                 <b>{d.getDate()}</b>
-                <small>{info.holiday && !info.holiday.work ? info.holiday.name : info.lunar}</small>
+                <small className={info.holiday ? "hol-text-" + holidayKind(info.holiday) : ""}>{holidayText(info.holiday, "s") ?? info.lunar}</small>
               </div>
               <DaySection date={k} events={events} tasks={tasks} now={now} max={6} />
             </div>

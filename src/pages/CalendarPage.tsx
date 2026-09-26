@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { remove, upsert, useStore } from "../store";
 import type { CalEvent } from "../types";
-import { addDays, COLORS, dayInfo, fmtDateLabel, parseYmd, today, uid, WEEK, ymd } from "../utils";
+import { addDays, COLORS, dayInfo, fmtDateLabel, holidayKind, holidayText, parseYmd, today, uid, WEEK, ymd } from "../utils";
 import { TaskRow } from "../widgets/TasksWidget";
 
 const REMINDS = [
@@ -138,7 +138,10 @@ export default function CalendarPage({ arg }: { arg?: string }) {
                   (d.getMonth() !== month.getMonth() ? " out" : "") +
                   (k === t ? " today" : "") +
                   (k === sel ? " sel" : "") +
-                  (info.holiday && !info.holiday.work ? " off" : "")
+                  (info.holiday && !info.holiday.work ? " off" : "") +
+                  (info.holiday?.festivalDay ? " fest-day" : "") +
+                  (info.holiday && !info.holiday.work && (info.holiday.index === 1 || d.getDay() === 0) ? " band-start" : "") +
+                  (info.holiday && !info.holiday.work && (info.holiday.index === info.holiday.total || d.getDay() === 6) ? " band-end" : "")
                 }
                 onClick={() => setSel(k)}
                 onDoubleClick={() => {
@@ -148,8 +151,8 @@ export default function CalendarPage({ arg }: { arg?: string }) {
               >
                 <div className="bigcal-d">
                   <b>{d.getDate()}</b>
-                  <small className={info.festival || info.holiday ? "fest" : ""}>
-                    {info.holiday ? (info.holiday.work ? "班" : info.holiday.name) : info.festival || info.lunar}
+                  <small className={info.holiday ? "hol-text-" + holidayKind(info.holiday) : info.festival ? "fest" : ""}>
+                    {holidayText(info.holiday, "s") ?? (info.festival || info.lunar)}
                   </small>
                 </div>
                 {evs.slice(0, 3).map((e) => (
@@ -171,7 +174,7 @@ export default function CalendarPage({ arg }: { arg?: string }) {
           <div className="muted small">
             农历{selInfo.lunarFull}
             {selInfo.festival && ` · ${selInfo.festival}`}
-            {selInfo.holiday && ` · ${selInfo.holiday.work ? "调休上班" : selInfo.holiday.name + "休息"}`}
+            {selInfo.holiday && ` · ${holidayText(selInfo.holiday)}`}
           </div>
         </div>
         {editing ? (

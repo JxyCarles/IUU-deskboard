@@ -3054,3 +3054,72 @@ html.resizing .board.ready .widget {
 .reader-body pre {
   white-space: pre-wrap;
 }
+
+/* ============ 法定节假日 ============
+ * 节日当天：实心红底；假期里的其他日子：红字虚线框；调休上班：灰色。
+ * 月历上整段假期连成一条浅红色带，首尾圆角，一眼能看出是连续假期。 */
+.tag.hol-fest {
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+}
+.tag.hol-rest {
+  background: transparent;
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 55%, transparent);
+  border-radius: 6px;
+}
+.tag.hol-work {
+  background: var(--track);
+  color: var(--text-2);
+}
+.hol-text-fest {
+  color: var(--red) !important;
+  font-weight: 700;
+}
+.hol-text-rest {
+  color: color-mix(in srgb, var(--red) 70%, var(--text-2)) !important;
+}
+.hol-text-work {
+  color: var(--text-3) !important;
+}
+/* 小组件月历：连续假期色带 */
+.mgrid-c.off::before {
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  z-index: 0;
+}
+.mgrid-c.off.band-start::before {
+  border-radius: 12px 0 0 12px;
+  left: 2px;
+}
+.mgrid-c.off.band-end::before {
+  border-radius: 0 12px 12px 0;
+  right: 2px;
+}
+.mgrid-c.off.band-start.band-end::before {
+  border-radius: 12px;
+}
+.mgrid-c span {
+  position: relative;
+  z-index: 1;
+}
+.mgrid-c.fest-day:not(.today) span {
+  background: var(--red);
+  color: #fff;
+  font-weight: 700;
+}
+/* 日历页：假期格子顶部一条连续的红线 + 浅红底，节日当天加深 */
+.bigcal-c.off {
+  background: color-mix(in srgb, var(--red) 7%, var(--panel-2));
+  box-shadow: inset 0 3px 0 color-mix(in srgb, var(--red) 45%, transparent);
+}
+.bigcal-c.off.fest-day {
+  background: color-mix(in srgb, var(--red) 14%, var(--panel-2));
+  box-shadow: inset 0 3px 0 var(--red);
+}
+.bigcal-c.off.sel {
+  box-shadow: inset 0 3px 0 var(--red), inset 0 0 0 2px var(--blue);
+}

@@ -19,7 +19,7 @@ import { startScheduler, useNow } from "./services/scheduler";
 import { setSettings, useStore } from "./store";
 import { buildTheme, isDark, paletteFromPixels, wallpaperCss } from "./theme";
 import type { PageKey, Settings } from "./types";
-import { dayInfo, WEEK } from "./utils";
+import { dayInfo, holidayText, WEEK } from "./utils";
 import { seedLibrary } from "./wallpapers";
 import { NavContext } from "./widgets/common";
 
@@ -126,7 +126,7 @@ function TitleBar({ editing, setEditing, onAdd }: { editing: boolean; setEditing
         </b>
         <span data-tauri-drag-region>
           农历{info.lunarFull}
-          {info.festival ? ` · ${info.festival}` : ""}
+          {holidayText(info.holiday) ? ` · ${holidayText(info.holiday)}` : info.festival ? ` · ${info.festival}` : ""}
         </span>
       </div>
       <div className="tb-right">

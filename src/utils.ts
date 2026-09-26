@@ -31,11 +31,19 @@ export const toMin = (t: string) => {
   return h * 60 + m;
 };
 
+export interface Holiday {
+  name: string; // 中秋节、国庆节
+  work: boolean; // true = 调休上班
+  festivalDay: boolean; // 是节日当天（而不是假期里的其他日子）
+  index: number; // 假期第几天（从 1 开始）
+  total: number; // 这段假期共几天
+}
+
 export interface DayInfo {
   lunar: string; // 初五 / 八月
   lunarFull: string; // 八月初五
   festival?: string; // 节日或节气
-  holiday?: { name: string; work: boolean }; // 法定假日 / 调休上班
+  holiday?: Holiday;
 }
 
 const dayInfoCache = new Map<string, DayInfo>();
@@ -50,14 +58,53 @@ export function dayInfo(d: Date): DayInfo {
   const month = lunar.getMonthInChinese() + "月";
   const festival = [...lunar.getFestivals(), ...solar.getFestivals(), lunar.getJieQi()].filter(Boolean)[0];
   const h = HolidayUtil.getHoliday(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  let holiday: Holiday | undefined;
+  if (h) {
+    const work = h.isWork();
+    const target = h.getTarget();
+    // 同一段假期：都是休息日且对应同一个节日
+    const sameRun = (x: Date) => {
+      const o = HolidayUtil.getHoliday(x.getFullYear(), x.getMonth() + 1, x.getDate());
+      return !!o && !o.isWork() && o.getTarget() === target;
+    };
+    let index = 1;
+    let total = 1;
+    if (!work) {
+      for (let x = addDays(d, -1); sameRun(x); x = addDays(x, -1)) index++;
+      total = index;
+      for (let x = addDays(d, 1); sameRun(x); x = addDays(x, 1)) total++;
+    }
+    holiday = { name: h.getName(), work, festivalDay: !work && target === key, index, total };
+  }
   const info: DayInfo = {
     lunar: day === "初一" ? month : day,
     lunarFull: month + day,
     festival,
-    holiday: h ? { name: h.getName(), work: h.isWork() } : undefined,
+    holiday,
   };
   dayInfoCache.set(key, info);
   return info;
+}
+
+/**
+ * 节假日文字：节日当天写节日名；假期里的其他日子写“中秋假期 · 第 2 天 / 共 3 天”，
+ * 让人一眼看出是同一段连续假期，但不是节日本身。
+ * len：s 用在月历格子（“中秋假”），m 用在小组件（“中秋假期 2/3”），l 是完整说明。
+ */
+export function holidayText(h: Holiday | undefined, len: "s" | "m" | "l" = "l"): string | undefined {
+  if (!h) return undefined;
+  if (h.work) return len === "s" ? "班" : "调休上班";
+  if (h.festivalDay) return h.name;
+  const base = h.name.replace(/节$/, "");
+  if (len === "s") return `${base}假`;
+  if (len === "m") return `${base}假期 ${h.index}/${h.total}`;
+  return `${base}假期 · 第 ${h.index} 天 / 共 ${h.total} 天`;
+}
+
+/** 对应的样式：fest 节日当天、rest 假期其他日子、work 调休上班 */
+export function holidayKind(h: Holiday | undefined): "fest" | "rest" | "work" | undefined {
+  if (!h) return undefined;
+  return h.work ? "work" : h.festivalDay ? "fest" : "rest";
 }
 
 export function relTime(ts: number) {

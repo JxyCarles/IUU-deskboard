@@ -15,7 +15,7 @@ export const PROVIDER_META: Record<ProviderConf["kind"], { needsKey: boolean; ke
   glm: {
     needsKey: true,
     keyHint: "智谱开放平台 API Key（bigmodel.cn → API Keys）",
-    desc: "GLM Coding Plan 额度接口，显示 5 小时 / 每周窗口的已用比例和重置时间。按量付费账户暂无官方余额接口。",
+    desc: "按量付费账户显示可用余额、累计充值与消费；开通了 GLM Coding Plan 还会显示 5 小时 / 每周额度。",
   },
   claude: {
     needsKey: true,
@@ -98,28 +98,57 @@ function fmtReset(ms?: number) {
   return (sameDay ? "今天 " : `${d.getMonth() + 1}/${d.getDate()} `) + t + " 重置";
 }
 
+const yuan = (n: unknown) => "¥" + Number(n ?? 0).toFixed(2);
+
+/**
+ * 智谱同时查两个接口：
+ * - 按量付费账户：/api/biz/account/query-customer-account-report（余额、充值、消费）
+ * - GLM Coding Plan：/api/monitor/usage/quota/limit（没开通会返回“当前用户不存在coding plan”）
+ * 有哪个显示哪个，两个都有就都显示；主数值优先用按量付费的可用余额。
+ */
 async function fetchGlm(p: ProviderConf): Promise<Omit<UsageSnap, "ts">> {
-  const v = await call<any>("fetch_glm_quota", { secret: secretName(p), host: p.host ?? null });
-  if (v?.success === false || (v?.code && v.code !== 200)) throw new Error(v?.msg || "接口返回失败");
-  const limits: any[] = v?.data?.limits ?? [];
-  const metrics: Metric[] = limits.map((l) => {
-    const pct = Number(l.percentage ?? 0);
-    return {
-      label: glmWindowLabel(l),
-      value: `${pct}%`,
-      sub: fmtReset(l.nextResetTime),
-      percent: pct,
-    };
-  });
-  const main = limits.find((l) => l.type !== "TIME_LIMIT" && Number(l.unit) === 3) ?? limits[0];
-  const pct = main ? Number(main.percentage ?? 0) : undefined;
-  return {
-    ok: true,
-    headline: pct === undefined ? "—" : `${pct}%`,
-    headlineSub: main ? `${glmWindowLabel(main)}已用` + (v?.data?.level ? ` · ${String(v.data.level).toUpperCase()}` : "") : "无额度数据",
-    percent: pct,
-    metrics,
-  };
+  const args = { secret: secretName(p), host: p.host ?? null };
+  const [acc, plan] = await Promise.allSettled([call<any>("fetch_glm_account", args), call<any>("fetch_glm_quota", args)]);
+  const ok = (r: PromiseSettledResult<any>) => r.status === "fulfilled" && r.value?.success !== false && (!r.value?.code || r.value.code === 200);
+
+  const metrics: Metric[] = [];
+  let headline: string | undefined;
+  let headlineSub: string | undefined;
+  let percent: number | undefined;
+
+  if (ok(acc)) {
+    const d = (acc as PromiseFulfilledResult<any>).value?.data ?? {};
+    const avail = Number(d.availableBalance ?? d.balance ?? 0);
+    headline = yuan(avail);
+    headlineSub = avail <= 0 ? "余额不足" : "可用余额（按量付费）";
+    if (d.todaySpendAmount != null) metrics.push({ label: "今日消费", value: yuan(d.todaySpendAmount) });
+    metrics.push({ label: "累计消费", value: yuan(d.totalSpendAmount) });
+    metrics.push({ label: "累计充值", value: yuan(d.rechargeAmount), sub: Number(d.giveAmount) > 0 ? `另有赠送 ${yuan(d.giveAmount)}` : undefined });
+    if (Number(d.frozenBalance) > 0) metrics.push({ label: "冻结金额", value: yuan(d.frozenBalance) });
+  }
+
+  if (ok(plan)) {
+    const v = (plan as PromiseFulfilledResult<any>).value;
+    const limits: any[] = v?.data?.limits ?? [];
+    for (const l of limits) {
+      const pct = Number(l.percentage ?? 0);
+      metrics.push({ label: "Coding Plan · " + glmWindowLabel(l), value: `${pct}%`, sub: fmtReset(l.nextResetTime), percent: pct });
+    }
+    const main = limits.find((l) => l.type !== "TIME_LIMIT" && Number(l.unit) === 3) ?? limits[0];
+    if (main && headline === undefined) {
+      percent = Number(main.percentage ?? 0);
+      headline = `${percent}%`;
+      headlineSub = `${glmWindowLabel(main)}已用` + (v?.data?.level ? ` · ${String(v.data.level).toUpperCase()}` : "");
+    }
+  }
+
+  if (headline === undefined) {
+    // 两个都失败：给出更有用的那条错误
+    const reason = (r: PromiseSettledResult<any>) =>
+      r.status === "rejected" ? (r.reason instanceof Error ? r.reason.message : String(r.reason)) : r.value?.msg || "接口返回失败";
+    throw new Error(reason(acc));
+  }
+  return { ok: true, headline, headlineSub, percent, metrics };
 }
 
 async function fetchClaude(p: ProviderConf): Promise<Omit<UsageSnap, "ts">> {

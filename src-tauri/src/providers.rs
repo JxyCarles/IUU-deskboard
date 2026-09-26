@@ -34,6 +34,24 @@ pub async fn fetch_glm_quota(secret: String, host: Option<String>) -> Result<Val
     .await
 }
 
+/// 智谱按量付费账户余额：GET /api/biz/account/query-customer-account-report
+/// 返回 availableBalance（可用余额）、rechargeAmount（累计充值）、giveAmount（赠送）、
+/// totalSpendAmount（累计消费）、todaySpendAmount（今日消费，可能为 null），单位为元。
+#[tauri::command]
+pub async fn fetch_glm_account(secret: String, host: Option<String>) -> Result<Value, String> {
+    let key = secrets::get(&secret)?;
+    let host = host
+        .filter(|h| !h.trim().is_empty())
+        .unwrap_or_else(|| "https://open.bigmodel.cn".to_string());
+    send_json(
+        client()
+            .get(format!("{}/api/biz/account/query-customer-account-report", host.trim_end_matches('/')))
+            .header("Authorization", key)
+            .header("Accept-Language", "zh-CN,zh"),
+    )
+    .await
+}
+
 /// Anthropic 组织费用报表（需要 Admin Key：sk-ant-admin...）。
 /// 自动翻页，把所有日桶合并成 { data: [...] } 返回。金额单位是“美分”的十进制字符串。
 #[tauri::command]

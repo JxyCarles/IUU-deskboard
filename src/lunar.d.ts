@@ -14,6 +14,9 @@ declare module "lunar-javascript" {
   interface Holiday {
     getName(): string;
     isWork(): boolean;
+    /** 这段假期对应的节日当天 YYYY-MM-DD */
+    getTarget(): string;
+    getDay(): string;
   }
   export const Solar: { fromDate(d: Date): Solar; fromYmd(y: number, m: number, d: number): Solar };
   export const HolidayUtil: { getHoliday(y: number, m: number, d: number): Holiday | null };

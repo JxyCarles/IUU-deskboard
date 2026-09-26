@@ -1,5 +1,5 @@
 import { useNow } from "../services/scheduler";
-import { dayInfo, pad, WEEK } from "../utils";
+import { dayInfo, holidayKind, holidayText, pad, WEEK } from "../utils";
 import { Bar, type WidgetProps } from "./common";
 
 export default function ClockWidget({ w }: WidgetProps) {
@@ -7,7 +7,9 @@ export default function ClockWidget({ w }: WidgetProps) {
   const info = dayInfo(now);
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const date = `${now.getMonth() + 1}月${now.getDate()}日 星期${WEEK[now.getDay()]}`;
-  const tag = info.holiday ? (info.holiday.work ? `${info.holiday.name} · 调休上班` : info.holiday.name) : info.festival;
+  // 法定假日优先（区分节日当天 / 假期中 / 调休），否则显示农历节日或节气
+  const tag = holidayText(info.holiday, w.size === "s" ? "m" : "l") ?? info.festival;
+  const tagKind = holidayKind(info.holiday);
 
   if (w.size === "s") {
     return (
@@ -19,7 +21,7 @@ export default function ClockWidget({ w }: WidgetProps) {
         </div>
         <div className="clock-lunar">
           农历{info.lunarFull}
-          {tag && <span className="tag">{tag}</span>}
+          {tag && <span className={"tag" + (tagKind ? " hol-" + tagKind : "")}>{tag}</span>}
         </div>
       </div>
     );
@@ -40,7 +42,7 @@ export default function ClockWidget({ w }: WidgetProps) {
         <div className="clock-date">{date}</div>
         <div className="clock-lunar">
           农历{info.lunarFull}
-          {tag && <span className="tag">{tag}</span>}
+          {tag && <span className={"tag" + (tagKind ? " hol-" + tagKind : "")}>{tag}</span>}
         </div>
       </div>
       <div className="clock-m-right">

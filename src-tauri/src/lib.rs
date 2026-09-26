@@ -244,6 +244,7 @@ pub fn run() {
             secrets::has_secret,
             providers::fetch_deepseek,
             providers::fetch_glm_quota,
+            providers::fetch_glm_account,
             providers::fetch_claude_cost,
             claude_code::claude_code_usage,
             feeds::fetch_feed,
