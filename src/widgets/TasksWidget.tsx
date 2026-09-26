@@ -1,14 +1,55 @@
 import { useMemo, useState } from "react";
 import { patch, upsert, useStore } from "../store";
 import type { Task } from "../types";
-import { fmtDateLabel, today, uid } from "../utils";
+import { fmtDateLabel, monthKey, parseYmd, today, uid, weekKey } from "../utils";
 import { Ring, stop, WHead, type WidgetProps } from "./common";
 
-/** 逾期 → 今天 → 有日期 → 无日期；同组内按优先级 */
+/** 周/月待办相对当前的状态：本周期内、已过去、还没到 */
+export function periodState(x: Task): "current" | "past" | "future" | undefined {
+  if (!x.period || !x.periodKey) return;
+  const cur = x.period === "week" ? weekKey() : monthKey();
+  return x.periodKey === cur ? "current" : x.periodKey < cur ? "past" : "future";
+}
+
+export type TaskBucket = "late" | "today" | "week" | "month" | "later" | "none";
+
+/** 未完成待办归到哪一组：有日期看日期；没日期但属于本周/本月的归到周/月 */
+export function taskBucket(x: Task, t = today()): TaskBucket {
+  const ps = periodState(x);
+  if (x.due && x.due < t) return "late";
+  if (x.due === t) return "today";
+  if (ps === "past") return "late";
+  if (ps === "current") return x.period === "week" ? "week" : "month";
+  if (x.due) return "later";
+  return "none";
+}
+
+const RANK: Record<TaskBucket, number> = { late: 0, today: 1, week: 2, month: 3, later: 4, none: 5 };
+
+/** 逾期 → 今天 → 本周 → 本月 → 之后 → 无日期；同组内先按手动拖好的顺序，没拖过的按优先级 */
 export function sortTasks(a: Task, b: Task) {
   const t = today();
-  const rank = (x: Task) => (!x.due ? 3 : x.due < t ? 0 : x.due === t ? 1 : 2);
-  return rank(a) - rank(b) || b.priority - a.priority || (a.due ?? "").localeCompare(b.due ?? "") || a.createdAt - b.createdAt;
+  const unordered = (x: Task) => (x.order === undefined ? 1 : 0);
+  return (
+    RANK[taskBucket(a, t)] - RANK[taskBucket(b, t)] ||
+    unordered(a) - unordered(b) ||
+    (a.order ?? 0) - (b.order ?? 0) ||
+    b.priority - a.priority ||
+    (a.due ?? "~").localeCompare(b.due ?? "~") ||
+    a.createdAt - b.createdAt
+  );
+}
+
+/** 没有具体日期的周/月待办显示成"本周""本月""3月"之类 */
+export function periodLabel(x: Task) {
+  const ps = periodState(x);
+  if (!ps || !x.periodKey) return;
+  if (x.period === "week") {
+    if (ps === "current") return "本周";
+    const d = parseYmd(x.periodKey);
+    return `${d.getMonth() + 1}/${d.getDate()} 那周`;
+  }
+  return ps === "current" ? "本月" : `${Number(x.periodKey.slice(5))}月`;
 }
 
 const PRI = ["", "!", "!!"];
@@ -27,6 +68,7 @@ export function TaskRow({ t, showDue = true }: { t: Task; showDue?: boolean }) {
         {t.title}
       </span>
       {showDue && t.due && <span className={"task-due" + (t.due < td && !t.done ? " late" : "")}>{fmtDateLabel(t.due)}</span>}
+      {showDue && !t.due && t.period && <span className={"task-due" + (periodState(t) === "past" && !t.done ? " late" : "")}>{periodLabel(t)}</span>}
     </label>
   );
 }

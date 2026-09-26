@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { closestCorners, useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useState, type ReactNode } from "react";
+import { applyOrder, Grip, SortableList, SortDnd, useSortRow } from "../components/Sortable";
 import { useNav } from "../widgets/common";
-import { patch, remove, upsert, useStore } from "../store";
+import { patch, remove, setState, upsert, useStore } from "../store";
 import type { ItemStatus, Project, ProjectItem } from "../types";
 import { COLORS, EMOJIS, md, today, uid } from "../utils";
 import { Bar } from "../widgets/common";
@@ -28,9 +31,11 @@ function newProject(): Project {
 function ItemCard({ it, onChange, onDelete }: { it: ProjectItem; onChange: (p: Partial<ProjectItem>) => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const idx = ORDER.indexOf(it.status);
+  const sort = useSortRow(it.id);
   return (
-    <div className={"kb-card" + (it.status === "done" ? " done" : "")} draggable onDragStart={(e) => e.dataTransfer.setData("text/item", it.id)}>
+    <div ref={sort.ref} {...sort.props} className={"kb-card" + (it.status === "done" ? " done" : "") + sort.cls}>
       <div className="kb-card-row">
+        <Grip />
         <span className="kb-dot" style={{ background: STATUS_META[it.status].color }} />
         <input className="kb-text" value={it.text} onChange={(e) => onChange({ text: e.target.value })} />
       </div>
@@ -65,6 +70,36 @@ function ItemCard({ it, onChange, onDelete }: { it: ProjectItem; onChange: (p: P
   );
 }
 
+function KbColumn({ status, ids, children }: { status: ItemStatus; ids: string[]; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "col:" + status });
+  return (
+    <div ref={setNodeRef} className={"kb-col" + (isOver ? " over" : "")}>
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </div>
+  );
+}
+
+function ProjectSideItem({ p, on, onSelect }: { p: Project; on: boolean; onSelect: () => void }) {
+  const st = projectStats(p);
+  const sort = useSortRow(p.id);
+  return (
+    <div ref={sort.ref} {...sort.props} className={"side-item" + (on ? " on" : "") + sort.cls} onClick={onSelect}>
+      <div className="side-item-title row">
+        <span className="grow ellipsis">
+          {p.emoji} {p.name}
+        </span>
+        <Grip />
+      </div>
+      <Bar percent={st.pct} color={p.color} />
+      <div className="side-item-sub">
+        待办 {st.todo} · 进行 {st.doing} · 完成 {st.done}
+      </div>
+    </div>
+  );
+}
+
 function ProjectDetail({ p }: { p: Project }) {
   const [editOverview, setEditOverview] = useState(!p.overview);
   const [drafts, setDrafts] = useState<Record<ItemStatus, string>>({ todo: "", doing: "", done: "" });
@@ -78,6 +113,29 @@ function ProjectDetail({ p }: { p: Project }) {
     if (!text) return;
     set({ items: [...p.items, { id: uid(), text, status, createdAt: Date.now() }] });
     setDrafts({ ...drafts, [status]: "" });
+  };
+  /** 拖到某张卡片上：放到它前面（跨列时顺带改状态）；拖到列的空白处：放到该列末尾 */
+  const moveItem = (id: string, overId: string) => {
+    if (id === overId) return;
+    const list = [...p.items];
+    const from = list.findIndex((i) => i.id === id);
+    if (from < 0) return;
+    if (overId.startsWith("col:")) {
+      const status = overId.slice(4) as ItemStatus;
+      const [it] = list.splice(from, 1);
+      const lastOfCol = list.map((i) => i.status).lastIndexOf(status);
+      list.splice(lastOfCol + 1, 0, { ...it, status });
+    } else {
+      const to = list.findIndex((i) => i.id === overId);
+      if (to < 0) return;
+      const status = list[to].status;
+      if (status === list[from].status) list.splice(to, 0, ...list.splice(from, 1));
+      else {
+        const [it] = list.splice(from, 1);
+        list.splice(list.findIndex((i) => i.id === overId), 0, { ...it, status });
+      }
+    }
+    set({ items: list });
   };
   const addLog = () => {
     if (!log.trim()) return;
@@ -137,37 +195,31 @@ function ProjectDetail({ p }: { p: Project }) {
         )}
       </div>
 
-      <div className="kb">
-        {ORDER.map((status) => {
-          const items = p.items.filter((i) => i.status === status);
-          return (
-            <div
-              key={status}
-              className="kb-col"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                const id = e.dataTransfer.getData("text/item");
-                if (id) setItem(id, { status });
-              }}
-            >
-              <div className="kb-col-h" style={{ color: STATUS_META[status].color }}>
-                {STATUS_META[status].label}
-                <span>{items.length}</span>
-              </div>
-              {items.map((it) => (
-                <ItemCard key={it.id} it={it} onChange={(x) => setItem(it.id, x)} onDelete={() => set({ items: p.items.filter((i) => i.id !== it.id) })} />
-              ))}
-              <input
-                className="kb-add"
-                placeholder="＋ 添加一项，回车保存"
-                value={drafts[status]}
-                onChange={(e) => setDrafts({ ...drafts, [status]: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && addItem(status)}
-              />
-            </div>
-          );
-        })}
-      </div>
+      <SortDnd collision={closestCorners} onDragEnd={({ active, over }) => over && moveItem(String(active.id), String(over.id))}>
+        <div className="kb">
+          {ORDER.map((status) => {
+            const items = p.items.filter((i) => i.status === status);
+            return (
+              <KbColumn key={status} status={status} ids={items.map((i) => i.id)}>
+                <div className="kb-col-h" style={{ color: STATUS_META[status].color }}>
+                  {STATUS_META[status].label}
+                  <span>{items.length}</span>
+                </div>
+                {items.map((it) => (
+                  <ItemCard key={it.id} it={it} onChange={(x) => setItem(it.id, x)} onDelete={() => set({ items: p.items.filter((i) => i.id !== it.id) })} />
+                ))}
+                <input
+                  className="kb-add"
+                  placeholder="＋ 添加一项，回车保存"
+                  value={drafts[status]}
+                  onChange={(e) => setDrafts({ ...drafts, [status]: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && addItem(status)}
+                />
+              </KbColumn>
+            );
+          })}
+        </div>
+      </SortDnd>
 
       <div className="card">
         <div className="card-head">
@@ -227,20 +279,11 @@ export default function ProjectsPage({ arg }: { arg?: string }) {
             return (
               <div key={g}>
                 <div className="side-group">{PSTATUS[g]}</div>
-                {list.map((p) => {
-                  const st = projectStats(p);
-                  return (
-                    <div key={p.id} className={"side-item" + (p.id === sel ? " on" : "")} onClick={() => setSel(p.id)}>
-                      <div className="side-item-title">
-                        {p.emoji} {p.name}
-                      </div>
-                      <Bar percent={st.pct} color={p.color} />
-                      <div className="side-item-sub">
-                        待办 {st.todo} · 进行 {st.doing} · 完成 {st.done}
-                      </div>
-                    </div>
-                  );
-                })}
+                <SortableList ids={list.map((p) => p.id)} onReorder={(ids) => setState((s) => ({ ...s, projects: applyOrder(s.projects, ids) }))}>
+                  {list.map((p) => (
+                    <ProjectSideItem key={p.id} p={p} on={p.id === sel} onSelect={() => setSel(p.id)} />
+                  ))}
+                </SortableList>
               </div>
             );
           })}

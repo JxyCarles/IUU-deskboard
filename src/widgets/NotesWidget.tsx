@@ -4,8 +4,10 @@ import type { Note } from "../types";
 import { plain, relTime } from "../utils";
 import { Empty, stop, useNav, WHead, type WidgetProps } from "./common";
 
+/** 置顶在前；同组内没拖过的（新建的）在前按修改时间，拖过的按手动顺序 */
 export function sortNotes(a: Note, b: Note) {
-  return Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt;
+  const ordered = (x: Note) => (x.order === undefined ? 0 : 1);
+  return Number(b.pinned) - Number(a.pinned) || ordered(a) - ordered(b) || (a.order ?? 0) - (b.order ?? 0) || b.updatedAt - a.updatedAt;
 }
 
 export default function NotesWidget({ w }: WidgetProps) {

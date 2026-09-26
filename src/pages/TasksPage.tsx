@@ -1,16 +1,98 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { patch, remove, setState, upsert, useStore } from "../store";
+import { Grip, SortableList, useSortRow } from "../components/Sortable";
 import type { Task } from "../types";
-import { addDays, fmtDateLabel, parseYmd, today, uid, WEEK, ymd } from "../utils";
-import { sortTasks } from "../widgets/TasksWidget";
+import { addDays, fmtDateLabel, monthKey, parseYmd, today, uid, WEEK, weekKey, ymd } from "../utils";
+import { periodLabel, periodState, sortTasks, taskBucket, type TaskBucket } from "../widgets/TasksWidget";
 
 const PRI_LABEL = ["普通", "重要", "紧急"];
 
-function TaskLine({ t }: { t: Task }) {
+type When = "today" | "week" | "month" | "none";
+const WHEN: { v: When; label: string }[] = [
+  { v: "today", label: "今天" },
+  { v: "week", label: "本周" },
+  { v: "month", label: "本月" },
+  { v: "none", label: "不定期" },
+];
+
+const GROUPS: { b: TaskBucket; name: string }[] = [
+  { b: "late", name: "已逾期" },
+  { b: "today", name: "今天" },
+  { b: "week", name: "本周" },
+  { b: "month", name: "本月" },
+  { b: "later", name: "之后" },
+  { b: "none", name: "不定期" },
+];
+
+/** 一组内拖动后，把这一组的顺序整体写回 order */
+const reorderTasks = (ids: string[]) =>
+  setState((s) => {
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    return { ...s, tasks: s.tasks.map((x) => (pos.has(x.id) ? { ...x, order: pos.get(x.id) } : x)) };
+  });
+
+const periodPatch = (p: "" | "week" | "month"): Partial<Task> =>
+  p ? { period: p, periodKey: p === "week" ? weekKey() : monthKey() } : { period: undefined, periodKey: undefined };
+
+/** 截止日期可选：没有时显示一个按钮，点开再选；有时可一键清除 */
+function DueInput({ value, onChange, late, className = "" }: { value?: string; onChange: (v?: string) => void; late?: boolean; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  if (!value && !open)
+    return (
+      <button
+        className={"due-empty " + className}
+        title="设置截止日期（可选）"
+        onClick={() => {
+          setOpen(true);
+          setTimeout(() => {
+            ref.current?.focus();
+            try {
+              ref.current?.showPicker();
+            } catch {}
+          });
+        }}
+      >
+        ＋ 截止日期
+      </button>
+    );
+  return (
+    <span className="due-wrap">
+      <input
+        ref={ref}
+        type="date"
+        className={className + (late ? " late" : "")}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+        onBlur={(e) => !e.target.value && setOpen(false)}
+      />
+      {value && (
+        <button
+          className="due-clear"
+          title="不设截止日期"
+          onClick={() => {
+            onChange(undefined);
+            setOpen(false);
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </span>
+  );
+}
+
+function SortTaskLine({ t }: { t: Task }) {
+  return <TaskLine t={t} sort={useSortRow(t.id)} />;
+}
+
+function TaskLine({ t, sort }: { t: Task; sort?: ReturnType<typeof useSortRow> }) {
   const projects = useStore((s) => s.projects);
   const td = today();
+  const ps = periodState(t);
   return (
-    <div className={"tp-line" + (t.done ? " done" : "")}>
+    <div ref={sort?.ref} {...sort?.props} className={"tp-line" + (t.done ? " done" : "") + (sort?.cls ?? "")}>
+      {sort ? <Grip /> : <span className="grip-space" />}
       <input type="checkbox" checked={t.done} onChange={() => patch("tasks", t.id, { done: !t.done, doneAt: t.done ? undefined : Date.now() })} />
       <input className="tp-title" value={t.title} onChange={(e) => patch("tasks", t.id, { title: e.target.value })} />
       <select className={"tp-pri p" + t.priority} value={t.priority} onChange={(e) => patch("tasks", t.id, { priority: Number(e.target.value) as Task["priority"] })}>
@@ -28,12 +110,17 @@ function TaskLine({ t }: { t: Task }) {
           </option>
         ))}
       </select>
-      <input
-        type="date"
-        className={"tp-date" + (t.due && t.due < td && !t.done ? " late" : "")}
-        value={t.due ?? ""}
-        onChange={(e) => patch("tasks", t.id, { due: e.target.value || undefined })}
-      />
+      <select
+        className={"tp-period" + (ps === "past" && !t.done ? " late" : "")}
+        value={t.period ?? ""}
+        title="周待办 / 月待办"
+        onChange={(e) => patch("tasks", t.id, periodPatch(e.target.value as "" | "week" | "month"))}
+      >
+        <option value="">不定期</option>
+        <option value="week">{t.period === "week" && ps !== "current" ? periodLabel(t) : "本周"}</option>
+        <option value="month">{t.period === "month" && ps !== "current" ? periodLabel(t) : "本月"}</option>
+      </select>
+      <DueInput className="tp-date" value={t.due} late={!!t.due && t.due < td && !t.done} onChange={(v) => patch("tasks", t.id, { due: v })} />
       <button className="icon-btn sm" title="删除" onClick={() => remove("tasks", t.id)}>
         ✕
       </button>
@@ -44,25 +131,31 @@ function TaskLine({ t }: { t: Task }) {
 export default function TasksPage() {
   const tasks = useStore((s) => s.tasks);
   const [draft, setDraft] = useState("");
-  const [due, setDue] = useState(today());
+  const [when, setWhen] = useState<When>("today");
+  const [due, setDue] = useState<string>();
   const [view, setView] = useState<"list" | "week">("list");
   const t = today();
 
   const groups = useMemo(() => {
     const pending = tasks.filter((x) => !x.done).sort(sortTasks);
     return [
-      { name: "已逾期", items: pending.filter((x) => x.due && x.due < t) },
-      { name: "今天", items: pending.filter((x) => x.due === t) },
-      { name: "之后", items: pending.filter((x) => x.due && x.due > t) },
-      { name: "未安排日期", items: pending.filter((x) => !x.due) },
-      { name: "已完成", items: tasks.filter((x) => x.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0)).slice(0, 30) },
+      ...GROUPS.map((g) => ({ name: g.name, sortable: true, items: pending.filter((x) => taskBucket(x, t) === g.b) })),
+      { name: "已完成", sortable: false, items: tasks.filter((x) => x.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0)).slice(0, 30) },
     ];
   }, [tasks, t]);
 
   const add = () => {
     const title = draft.trim();
     if (!title) return;
-    upsert("tasks", { id: uid(), title, done: false, priority: 0, due: due || undefined, createdAt: Date.now() });
+    upsert("tasks", {
+      id: uid(),
+      title,
+      done: false,
+      priority: 0,
+      due: when === "today" ? today() : due,
+      ...(when === "week" || when === "month" ? periodPatch(when) : {}),
+      createdAt: Date.now(),
+    });
     setDraft("");
   };
 
@@ -72,7 +165,14 @@ export default function TasksPage() {
     <div className="tasks-page">
       <div className="tp-add">
         <input className="input big grow" placeholder="添加待办，回车保存" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
-        <input type="date" className="input" value={due} onChange={(e) => setDue(e.target.value)} title="截止日期（清空表示不安排）" />
+        <div className="seg" title="本周 / 本月：周待办、月待办，截止日期可不填；不定期：没有期限">
+          {WHEN.map((x) => (
+            <button key={x.v} className={when === x.v ? "on" : ""} onClick={() => setWhen(x.v)}>
+              {x.label}
+            </button>
+          ))}
+        </div>
+        {when !== "today" && <DueInput className="input" value={due} onChange={setDue} />}
         <button className="btn primary" onClick={add}>
           添加
         </button>
@@ -99,9 +199,15 @@ export default function TasksPage() {
                 <h4>
                   {g.name} <span className="muted">{g.items.length}</span>
                 </h4>
-                {g.items.map((x) => (
-                  <TaskLine key={x.id} t={x} />
-                ))}
+                {g.sortable ? (
+                  <SortableList ids={g.items.map((x) => x.id)} onReorder={reorderTasks}>
+                    {g.items.map((x) => (
+                      <SortTaskLine key={x.id} t={x} />
+                    ))}
+                  </SortableList>
+                ) : (
+                  g.items.map((x) => <TaskLine key={x.id} t={x} />)
+                )}
               </div>
             ),
         )
@@ -147,6 +253,7 @@ export default function TasksPage() {
               .map((x) => (
                 <div key={x.id} className="wp-card" draggable onDragStart={(e) => e.dataTransfer.setData("text/task", x.id)}>
                   {x.title}
+                  {x.period && <span className="muted small"> · {periodLabel(x)}</span>}
                 </div>
               ))}
           </div>

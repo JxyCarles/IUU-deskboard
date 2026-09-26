@@ -78,6 +78,16 @@ button {
   font: inherit;
   color: inherit;
 }
+/* 下拉选项的弹出层由系统绘制，不跟随 select 的半透明背景；
+ * 若只继承文字颜色，浅色字会落在系统的浅灰底上看不见，所以统一给出底色和字色 */
+option,
+optgroup {
+  background-color: var(--panel);
+  color: var(--text);
+}
+option:disabled {
+  color: var(--text-3);
+}
 input,
 textarea {
   user-select: text;
@@ -2115,7 +2125,8 @@ textarea.input {
   font-size: 14px;
 }
 .tp-line select,
-.tp-date {
+.tp-date,
+.tp-line .due-empty {
   border: none;
   background: var(--track);
   border-radius: 8px;
@@ -2128,7 +2139,37 @@ textarea.input {
 .tp-pri.p2 {
   color: var(--red);
 }
-.tp-date.late {
+.tp-date.late,
+.tp-period.late {
+  color: var(--red);
+}
+.due-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.due-empty {
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.tp-add .due-empty {
+  border-radius: 10px;
+  padding: 7px 12px;
+}
+.due-empty:hover {
+  color: var(--text-2);
+}
+.due-clear {
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+.due-clear:hover {
   color: var(--red);
 }
 .week-plan {
@@ -3007,16 +3048,6 @@ html.resizing .board.ready .widget {
 .src-tools {
   gap: 2px;
 }
-.drag-grip {
-  cursor: grab;
-  color: var(--text-3);
-}
-.side-item.dragging-src {
-  opacity: 0.4;
-}
-.side-item.drop-before {
-  box-shadow: inset 0 2px 0 var(--accent);
-}
 .src-tag {
   font-weight: 600;
 }
@@ -3810,4 +3841,68 @@ html.resizing .board.ready .widget {
 }
 .daily-card-body .reader-body img {
   max-width: min(100%, 560px);
+}
+
+/* ============ 拖动排序 ============ */
+.sort-row {
+  position: relative;
+  touch-action: manipulation;
+  transition-property: scale, box-shadow, opacity;
+  transition-duration: 0.18s;
+}
+/* 长按中：慢慢往下压，提示马上要被拿起 */
+.sort-row.pressing {
+  scale: 0.97;
+  transition-duration: 0.4s;
+}
+/* 拿起：放大、浮起阴影、盖在其他条目上面 */
+.sort-row.lifted {
+  z-index: 20;
+  scale: 1.03;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--accent);
+  cursor: grabbing;
+  opacity: 0.97;
+}
+body.sorting,
+body.sorting * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 22px;
+  color: var(--text-3);
+  cursor: grab;
+  opacity: 0.55;
+  border-radius: 6px;
+}
+.sort-row:hover .grip,
+.grip:hover {
+  opacity: 1;
+}
+.grip:hover {
+  background: var(--hover);
+  color: var(--text-2);
+}
+.grip-space {
+  width: 18px;
+  flex: none;
+}
+.tp-line .grip {
+  margin: 0 -4px 0 -6px;
+}
+.kb-col.over {
+  box-shadow: inset 0 0 0 2px var(--accent-soft);
+}
+.kb-card-row .grip {
+  margin-left: -4px;
+}
+.src-name .grip,
+.side-item-title .grip {
+  width: 16px;
+  height: 18px;
 }

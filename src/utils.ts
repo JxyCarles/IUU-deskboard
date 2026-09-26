@@ -23,6 +23,12 @@ export const addDays = (d: Date, n: number) => {
 
 export const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 
+/** 所在周的周一，作为"本周"的键 */
+export const weekKey = (d = new Date()) => ymd(addDays(d, -((d.getDay() + 6) % 7)));
+
+/** "YYYY-MM"，作为"本月"的键 */
+export const monthKey = (d = new Date()) => ymd(d).slice(0, 7);
+
 export const hm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 /** "HH:mm" → 当天的分钟数 */

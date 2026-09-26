@@ -1,7 +1,44 @@
 import { useMemo, useState } from "react";
 import { mergedFeed, moveFeed, openReader, refreshAllFeeds, refreshFeed, sourceColor } from "../services/feeds";
-import { patch, remove, upsert, useStore } from "../store";
+import { applyOrder, Grip, SortableList, useSortRow } from "../components/Sortable";
+import { patch, remove, setState, upsert, useStore } from "../store";
+import type { FeedSource } from "../types";
 import { relTime, uid } from "../utils";
+
+function FeedSideItem({ f, i, on, manage, onSelect }: { f: FeedSource; i: number; on: boolean; manage: boolean; onSelect: () => void }) {
+  const feeds = useStore((s) => s.feeds);
+  const cache = useStore((s) => s.cache.feeds);
+  const sort = useSortRow(f.id);
+  return (
+    <div ref={sort.ref} {...sort.props} className={"side-item" + (on ? " on" : "") + sort.cls} onClick={onSelect}>
+      <div className="row between">
+        <span className="row src-name">
+          <Grip />
+          <i className="src-dot" style={{ background: sourceColor(feeds, f.id) }} />
+          <span className={f.enabled ? "" : "muted"}>{f.name}</span>
+        </span>
+        {manage ? (
+          <span className="row src-tools" onClick={(e) => e.stopPropagation()}>
+            <button className="icon-btn sm" disabled={i === 0} title="上移" onClick={() => moveFeed(f.id, i - 1)}>
+              ↑
+            </button>
+            <button className="icon-btn sm" disabled={i === feeds.length - 1} title="下移" onClick={() => moveFeed(f.id, i + 1)}>
+              ↓
+            </button>
+            <input type="checkbox" title="启用" checked={f.enabled} onChange={() => patch("feeds", f.id, { enabled: !f.enabled })} />
+            <button className="icon-btn sm" title="删除" onClick={() => remove("feeds", f.id)}>
+              ✕
+            </button>
+          </span>
+        ) : (
+          <span className="muted small">{cache[f.id]?.error ? "⚠" : cache[f.id]?.items.length ?? 0}</span>
+        )}
+      </div>
+      {manage && <div className="muted tiny ellipsis">{f.url}</div>}
+      {cache[f.id]?.error && <div className="err tiny">{cache[f.id].error}</div>}
+    </div>
+  );
+}
 
 export default function NewsPage({ arg }: { arg?: string }) {
   const feeds = useStore((s) => s.feeds);
@@ -10,8 +47,6 @@ export default function NewsPage({ arg }: { arg?: string }) {
   const [manage, setManage] = useState(false);
   const [busy, setBusy] = useState(false);
   const [nf, setNf] = useState({ name: "", url: "" });
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overIdx, setOverIdx] = useState<number | null>(null);
 
   const items = useMemo(() => mergedFeed(src ? feeds.filter((f) => f.id === src) : feeds, cache), [feeds, cache, src]);
   const current = feeds.find((f) => f.id === src);
@@ -49,69 +84,18 @@ export default function NewsPage({ arg }: { arg?: string }) {
             {manage ? "完成" : "管理"}
           </button>
         </div>
-        {manage && <div className="muted tiny">拖动或用 ↑↓ 调整顺序，小组件按这个顺序显示</div>}
+        {manage && <div className="muted tiny">按住 ≡ 或长按拖动，也可用 ↑↓ 调整顺序，小组件按这个顺序显示</div>}
         <div className="side-list">
           {!manage && (
             <div className={"side-item" + (src === "" ? " on" : "")} onClick={() => setSrc("")}>
               全部
             </div>
           )}
-          {feeds.map((f, i) => (
-            <div
-              key={f.id}
-              className={"side-item" + (src === f.id && !manage ? " on" : "") + (dragId === f.id ? " dragging-src" : "") + (overIdx === i && dragId && dragId !== f.id ? " drop-before" : "")}
-              onClick={() => !manage && setSrc(f.id)}
-              draggable={manage}
-              onDragStart={(e) => {
-                setDragId(f.id);
-                e.dataTransfer.effectAllowed = "move";
-              }}
-              onDragOver={(e) => {
-                if (!dragId) return;
-                e.preventDefault();
-                setOverIdx(i);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (dragId) {
-                  const from = feeds.findIndex((x) => x.id === dragId);
-                  moveFeed(dragId, from < i ? i - 1 : i);
-                }
-                setDragId(null);
-                setOverIdx(null);
-              }}
-              onDragEnd={() => {
-                setDragId(null);
-                setOverIdx(null);
-              }}
-            >
-              <div className="row between">
-                <span className="row src-name">
-                  {manage && <span className="drag-grip">⠿</span>}
-                  <i className="src-dot" style={{ background: sourceColor(feeds, f.id) }} />
-                  <span className={f.enabled ? "" : "muted"}>{f.name}</span>
-                </span>
-                {manage ? (
-                  <span className="row src-tools" onClick={(e) => e.stopPropagation()}>
-                    <button className="icon-btn sm" disabled={i === 0} title="上移" onClick={() => moveFeed(f.id, i - 1)}>
-                      ↑
-                    </button>
-                    <button className="icon-btn sm" disabled={i === feeds.length - 1} title="下移" onClick={() => moveFeed(f.id, i + 1)}>
-                      ↓
-                    </button>
-                    <input type="checkbox" title="启用" checked={f.enabled} onChange={() => patch("feeds", f.id, { enabled: !f.enabled })} />
-                    <button className="icon-btn sm" title="删除" onClick={() => remove("feeds", f.id)}>
-                      ✕
-                    </button>
-                  </span>
-                ) : (
-                  <span className="muted small">{cache[f.id]?.error ? "⚠" : cache[f.id]?.items.length ?? 0}</span>
-                )}
-              </div>
-              {manage && <div className="muted tiny ellipsis">{f.url}</div>}
-              {cache[f.id]?.error && <div className="err tiny">{cache[f.id].error}</div>}
-            </div>
-          ))}
+          <SortableList ids={feeds.map((f) => f.id)} onReorder={(ids) => setState((s) => ({ ...s, feeds: applyOrder(s.feeds, ids) }))}>
+            {feeds.map((f, i) => (
+              <FeedSideItem key={f.id} f={f} i={i} on={src === f.id && !manage} manage={manage} onSelect={() => !manage && setSrc(f.id)} />
+            ))}
+          </SortableList>
           {manage && (
             <div className="form pad">
               <input className="input" placeholder="名称（可选）" value={nf.name} onChange={(e) => setNf({ ...nf, name: e.target.value })} />

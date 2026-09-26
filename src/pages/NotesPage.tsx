@@ -1,7 +1,36 @@
 import { useMemo, useState } from "react";
-import { patch, remove, upsert, useStore } from "../store";
+import { Grip, SortableList, useSortRow } from "../components/Sortable";
+import { patch, remove, setState, upsert, useStore } from "../store";
+import type { Note } from "../types";
 import { md, plain, relTime, uid } from "../utils";
 import { sortNotes } from "../widgets/NotesWidget";
+
+const reorderNotes = (ids: string[]) =>
+  setState((s) => {
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    return { ...s, notes: s.notes.map((x) => (pos.has(x.id) ? { ...x, order: pos.get(x.id) } : x)) };
+  });
+
+function SortNoteItem(props: { n: Note; on: boolean; onSelect: () => void }) {
+  return <NoteItem {...props} sort={useSortRow(props.n.id)} />;
+}
+
+function NoteItem({ n, on, onSelect, sort }: { n: Note; on: boolean; onSelect: () => void; sort?: ReturnType<typeof useSortRow> }) {
+  return (
+    <div ref={sort?.ref} {...sort?.props} className={"side-item" + (on ? " on" : "") + (sort?.cls ?? "")} onClick={onSelect}>
+      <div className="side-item-title row">
+        <span className="grow ellipsis">
+          {n.pinned && "📌 "}
+          {n.title || "无标题"}
+        </span>
+        {sort && <Grip />}
+      </div>
+      <div className="side-item-sub">
+        {relTime(n.updatedAt)} · {plain(n.content).slice(0, 40)}
+      </div>
+    </div>
+  );
+}
 
 export default function NotesPage({ arg }: { arg?: string }) {
   const notes = useStore((s) => s.notes);
@@ -35,17 +64,19 @@ export default function NotesPage({ arg }: { arg?: string }) {
           </button>
         </div>
         <div className="side-list">
-          {list.map((n) => (
-            <div key={n.id} className={"side-item" + (n.id === sel ? " on" : "")} onClick={() => setSel(n.id)}>
-              <div className="side-item-title">
-                {n.pinned && "📌 "}
-                {n.title || "无标题"}
-              </div>
-              <div className="side-item-sub">
-                {relTime(n.updatedAt)} · {plain(n.content).slice(0, 40)}
-              </div>
-            </div>
-          ))}
+          {/* 搜索时只显示部分条目，不提供拖动；否则置顶和普通两组各自拖动排序 */}
+          {q.trim()
+            ? list.map((n) => <NoteItem key={n.id} n={n} on={n.id === sel} onSelect={() => setSel(n.id)} />)
+            : [true, false].map((pinned) => {
+                const group = list.filter((n) => n.pinned === pinned);
+                return (
+                  <SortableList key={String(pinned)} ids={group.map((n) => n.id)} onReorder={reorderNotes}>
+                    {group.map((n) => (
+                      <SortNoteItem key={n.id} n={n} on={n.id === sel} onSelect={() => setSel(n.id)} />
+                    ))}
+                  </SortableList>
+                );
+              })}
           {list.length === 0 && <div className="muted small pad">没有备忘录</div>}
         </div>
       </aside>

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { call, isTauri } from "../api";
 import { PROVIDER_META, refreshProvider, rowCost, rowTokens, secretName } from "../services/providers";
-import { patch, useStore } from "../store";
+import { applyOrder, Grip, SortableList, useSortRow } from "../components/Sortable";
+import { patch, setState, useStore } from "../store";
 import type { ClaudeCodeRow, ProviderConf } from "../types";
 import { fmtTokens, relTime } from "../utils";
 import { CCBars, PROVIDER_ICON } from "../widgets/AIWidget";
@@ -54,6 +55,7 @@ function KeyInput({ p, onSaved }: { p: ProviderConf; onSaved: () => void }) {
 }
 
 function ProviderCard({ p }: { p: ProviderConf }) {
+  const sort = useSortRow(p.id);
   const snap = useStore((s) => s.cache.usage[p.id]);
   const [busy, setBusy] = useState(false);
   const meta = PROVIDER_META[p.kind];
@@ -64,8 +66,9 @@ function ProviderCard({ p }: { p: ProviderConf }) {
     setBusy(false);
   };
   return (
-    <div className={"card pv" + (p.enabled ? "" : " disabled")}>
+    <div ref={sort.ref} {...sort.props} className={"card pv" + (p.enabled ? "" : " disabled") + sort.cls}>
       <div className="pv-head">
+        <Grip />
         <span className="ai-ic big" style={{ background: ic.color }}>
           {ic.icon}
         </span>
@@ -202,11 +205,13 @@ export default function AIPage() {
   return (
     <div className="ai-page">
       {!isTauri && <div className="err">当前是浏览器预览模式，额度查询需要在桌面客户端里运行。</div>}
-      <div className="pv-grid">
-        {providers.map((p) => (
-          <ProviderCard key={p.id} p={p} />
-        ))}
-      </div>
+      <SortableList grid ids={providers.map((p) => p.id)} onReorder={(ids) => setState((s) => ({ ...s, providers: applyOrder(s.providers, ids) }))}>
+        <div className="pv-grid">
+          {providers.map((p) => (
+            <ProviderCard key={p.id} p={p} />
+          ))}
+        </div>
+      </SortableList>
       <ClaudeCodeStats />
     </div>
   );

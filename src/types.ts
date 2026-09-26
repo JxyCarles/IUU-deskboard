@@ -28,6 +28,8 @@ export interface Note {
   title: string;
   content: string;
   pinned: boolean;
+  /** 手动拖动排序后的顺序；没拖过的（比如新建的）排在前面 */
+  order?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -48,8 +50,13 @@ export interface Task {
   id: string;
   title: string;
   done: boolean;
-  due?: string; // YYYY-MM-DD
+  due?: string; // YYYY-MM-DD，可选
+  /** 周待办 / 月待办：只归属某一周或某一月，不必有具体日期 */
+  period?: "week" | "month";
+  periodKey?: string; // week：周一的 YYYY-MM-DD；month：YYYY-MM
   priority: 0 | 1 | 2; // 0 普通 1 重要 2 紧急
+  /** 手动拖动排序后的顺序；没拖过的排在同组已排序条目之后 */
+  order?: number;
   projectId?: string;
   createdAt: number;
   doneAt?: number;
