@@ -11,6 +11,7 @@ import ClockWidget from "./ClockWidget";
 import CustomWidget, { specColor, specIcon } from "./CustomWidget";
 import GithubWidget, { GITHUB_SECTIONS } from "./GithubWidget";
 import type { WidgetProps } from "./common";
+import DailyWidget from "./DailyWidget";
 import NewsWidget, { newsSections } from "./NewsWidget";
 import NotesWidget from "./NotesWidget";
 import ProjectWidget from "./ProjectWidget";
@@ -156,6 +157,7 @@ export const WIDGETS: WidgetDef[] = [
   { type: "project", name: "项目", desc: "单个项目的概况与待办/进行中/完成，或全部项目总览", icon: "project", color: "var(--c-project)", sizes: ["s", "m", "l", "xl"], page: "projects", Component: ProjectWidget, Config: ProjectConfig },
   { type: "ai", name: "AI 额度", desc: "DeepSeek / GLM / Claude 余额与用量", icon: "ai", color: "var(--c-ai)", sizes: ["s", "m", "l", "xl"], page: "ai", Component: AIWidget, Config: AIConfig },
   { type: "news", name: "资讯", desc: "RSS 资讯聚合", icon: "news", color: "var(--c-news)", sizes: ["s", "m", "l", "xl"], page: "news", Component: NewsWidget, Config: NewsConfig },
+  { type: "daily", name: "AI 早报", desc: "橘鸦 AI 早报：每天早上一期，按要闻 / 开发生态 / 产品应用等分类", icon: "daily", color: "var(--c-daily)", sizes: ["s", "m", "l", "xl"], page: "daily", Component: DailyWidget },
   { type: "github", name: "GitHub 热门", desc: "GitHub Trending：今日 / 本周 / 本月热门仓库，可按语言筛选", icon: "github", color: "var(--c-github)", sizes: ["s", "m", "l", "xl"], page: "github", Component: GithubWidget, Config: GithubConfig },
 ];
 

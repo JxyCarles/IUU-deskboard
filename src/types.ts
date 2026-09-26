@@ -10,6 +10,7 @@ export type WidgetType =
   | "ai"
   | "news"
   | "github"
+  | "daily"
   | "custom";
 
 export interface WidgetInst {
@@ -141,6 +142,25 @@ export interface FeedItem {
   content?: string; // 正文 HTML，只在内存里保留
 }
 
+/** AI 早报里的一条 */
+export interface DailyItem {
+  n: number; // 原文编号 #n
+  section: string; // 要闻 / 开发生态 / 产品应用……
+  title: string;
+  link?: string;
+  summary?: string;
+}
+
+/** 一期 AI 早报 */
+export interface DailyIssue {
+  date: string; // YYYY-MM-DD
+  link: string;
+  published?: string;
+  cover?: string;
+  videos?: { name: string; url: string }[];
+  items: DailyItem[];
+}
+
 export interface FeedCache {
   ts: number;
   items: FeedItem[];
@@ -260,10 +280,11 @@ export interface AppData {
     github?: Record<string, { ts: number; items: GithubRepo[]; error?: string }>;
     custom?: Record<string, { ts: number; items: CustomItem[]; error?: string }>;
     briefs?: Record<string, Brief>;
+    daily?: { ts: number; issues: DailyIssue[]; error?: string };
   };
 }
 
-export type PageKey = "notes" | "calendar" | "tasks" | "projects" | "ai" | "news" | "github" | "studio" | "settings";
+export type PageKey = "notes" | "calendar" | "tasks" | "projects" | "ai" | "news" | "daily" | "github" | "studio" | "settings";
 
 export interface GithubRepo {
   name: string;

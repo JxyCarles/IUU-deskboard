@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { isTauri, notify } from "../api";
 import { getState } from "../store";
 import { toMin, today } from "../utils";
+import { refreshDaily } from "./daily";
 import { refreshAllFeeds } from "./feeds";
 import { refreshDueCustom } from "./customWidgets";
 import { refreshAllTrending } from "./github";
@@ -39,6 +40,7 @@ export function startScheduler() {
     if (isTauri && now - lastFeed >= s.feedRefreshMin * 60_000) {
       lastFeed = now;
       refreshAllFeeds();
+      refreshDaily();
       refreshAllTrending();
     }
     refreshDueCustom();

@@ -53,7 +53,7 @@ pub async fn fetch_feed(url: String) -> Result<Vec<FeedItem>, String> {
                 .and_then(|c| c.body.clone())
                 .or_else(|| e.summary.as_ref().map(|s| s.content.clone()))
                 .filter(|c| !c.trim().is_empty())
-                .map(|c| c.chars().take(60_000).collect::<String>());
+                .map(|c| c.chars().take(200_000).collect::<String>());
             FeedItem {
                 title: e.title.map(|t| t.content).unwrap_or_default(),
                 link: e.links.first().map(|l| l.href.clone()).unwrap_or_default(),

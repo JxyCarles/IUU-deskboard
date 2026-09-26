@@ -71,6 +71,13 @@ const PATHS = {
       <path d="M16 3.5v3M16 12.5v-1M11.5 8h1M19.5 8h1M18.5 5.5l.8-.8M13.5 5.5l-.8-.8M18.5 10.5l.8.8" />
     </>
   ),
+  daily: (
+    <>
+      <path d="M3 18.5h18M7 21h10" />
+      <path d="M7.5 18.5a4.5 4.5 0 0 1 9 0" />
+      <path d="M12 6v3M5.6 10.6l1.8 1.8M18.4 10.6l-1.8 1.8M3.5 15h1.8M18.7 15h1.8" />
+    </>
+  ),
   plus: <path d="M12 5v14M5 12h14" />,
   refresh: (
     <>
@@ -103,7 +110,7 @@ const PATHS = {
 export type IconName = keyof typeof PATHS;
 
 /** 扩展规范里允许自定义小组件使用的图标 */
-export const ICON_LIST: IconName[] = ["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "github", "settings", "image", "grid", "studio"];
+export const ICON_LIST: IconName[] = ["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "daily", "github", "settings", "image", "grid", "studio"];
 
 export function Icon({ name, size = 18, stroke = 1.8 }: { name: IconName; size?: number; stroke?: number }) {
   return (

@@ -10,6 +10,7 @@ import { applyFont } from "./fonts";
 import { Icon, type IconName } from "./icons";
 import AIPage from "./pages/AIPage";
 import CalendarPage from "./pages/CalendarPage";
+import DailyPage from "./pages/DailyPage";
 import GithubPage from "./pages/GithubPage";
 import NewsPage from "./pages/NewsPage";
 import NotesPage from "./pages/NotesPage";
@@ -32,6 +33,7 @@ const PAGES: { key: PageKey; name: string; icon: IconName; color: string }[] = [
   { key: "projects", name: "项目", icon: "project", color: "var(--c-project)" },
   { key: "ai", name: "AI 额度", icon: "ai", color: "var(--c-ai)" },
   { key: "news", name: "资讯", icon: "news", color: "var(--c-news)" },
+  { key: "daily", name: "AI 早报", icon: "daily", color: "var(--c-daily)" },
   { key: "github", name: "GitHub", icon: "github", color: "var(--c-github)" },
   { key: "studio", name: "创造台", icon: "studio", color: "var(--c-studio)" },
   { key: "settings", name: "设置", icon: "settings", color: "var(--c-settings)" },
@@ -51,6 +53,8 @@ function PageView({ page, arg }: { page: PageKey; arg?: string }) {
       return <AIPage />;
     case "news":
       return <NewsPage arg={arg} />;
+    case "daily":
+      return <DailyPage arg={arg} />;
     case "github":
       return <GithubPage />;
     case "studio":
