@@ -14,6 +14,7 @@ import NewsPage from "./pages/NewsPage";
 import NotesPage from "./pages/NotesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import SettingsPage from "./pages/SettingsPage";
+import StudioPage from "./pages/StudioPage";
 import TasksPage from "./pages/TasksPage";
 import { startScheduler, useNow } from "./services/scheduler";
 import { setSettings, useStore } from "./store";
@@ -31,6 +32,7 @@ const PAGES: { key: PageKey; name: string; icon: IconName; color: string }[] = [
   { key: "ai", name: "AI 额度", icon: "ai", color: "var(--c-ai)" },
   { key: "news", name: "资讯", icon: "news", color: "var(--c-news)" },
   { key: "github", name: "GitHub", icon: "github", color: "var(--c-github)" },
+  { key: "studio", name: "创造台", icon: "studio", color: "var(--c-studio)" },
   { key: "settings", name: "设置", icon: "settings", color: "var(--c-settings)" },
 ];
 
@@ -50,6 +52,8 @@ function PageView({ page, arg }: { page: PageKey; arg?: string }) {
       return <NewsPage arg={arg} />;
     case "github":
       return <GithubPage />;
+    case "studio":
+      return <StudioPage arg={arg} />;
     case "settings":
       return <SettingsPage />;
   }

@@ -1,3 +1,4 @@
+mod ai;
 mod claude_code;
 mod feeds;
 mod github;
@@ -245,6 +246,9 @@ pub fn run() {
             providers::fetch_deepseek,
             providers::fetch_glm_quota,
             providers::fetch_glm_account,
+            ai::ai_chat,
+            ai::fetch_json,
+            storage::backup_data,
             providers::fetch_claude_cost,
             claude_code::claude_code_usage,
             feeds::fetch_feed,

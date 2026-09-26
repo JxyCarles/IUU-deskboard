@@ -1,12 +1,13 @@
 import type { FC } from "react";
 import type { IconName } from "../icons";
 import { LANGUAGES } from "../services/github";
-import { patch, useStore } from "../store";
+import { getState, patch, useStore } from "../store";
 import type { PageKey, WidgetInst, WidgetSize, WidgetType } from "../types";
 import AgendaWidget from "./AgendaWidget";
 import AIWidget from "./AIWidget";
 import CalendarWidget from "./CalendarWidget";
 import ClockWidget from "./ClockWidget";
+import CustomWidget, { specColor, specIcon } from "./CustomWidget";
 import GithubWidget from "./GithubWidget";
 import type { WidgetProps } from "./common";
 import NewsWidget from "./NewsWidget";
@@ -113,4 +114,30 @@ export const WIDGETS: WidgetDef[] = [
   { type: "github", name: "GitHub 热门", desc: "GitHub Trending：今日 / 本周 / 本月热门仓库，可按语言筛选", icon: "github", color: "var(--c-github)", sizes: ["s", "m", "l", "xl"], page: "github", Component: GithubWidget, Config: GithubConfig },
 ];
 
-export const widgetDef = (t: WidgetType) => WIDGETS.find((d) => d.type === t)!;
+/** 自定义小组件（deskboard.widget/v1）共用的定义；名称、图标、尺寸按各自的规范覆盖 */
+const CUSTOM_DEF: WidgetDef = {
+  type: "custom",
+  name: "自定义小组件",
+  desc: "在创造台里制作的小组件",
+  icon: "grid",
+  color: "var(--c-studio)",
+  sizes: ["s", "m", "l", "xl"],
+  Component: CustomWidget,
+};
+
+export const widgetDef = (t: WidgetType) => (t === "custom" ? CUSTOM_DEF : WIDGETS.find((d) => d.type === t)!);
+
+/** 按具体实例取定义：自定义小组件用它自己的名称、图标和允许的尺寸 */
+export function widgetDefOf(w: Pick<WidgetInst, "type" | "config">): WidgetDef {
+  if (w.type !== "custom") return widgetDef(w.type);
+  const spec = getState().customWidgets.find((x) => x.id === w.config.specId);
+  if (!spec) return CUSTOM_DEF;
+  return {
+    ...CUSTOM_DEF,
+    name: spec.name,
+    desc: spec.description ?? CUSTOM_DEF.desc,
+    icon: specIcon(spec),
+    color: specColor(spec),
+    sizes: spec.display?.sizes?.length ? spec.display.sizes : spec.display?.type === "stat" ? ["s", "m"] : CUSTOM_DEF.sizes,
+  };
+}

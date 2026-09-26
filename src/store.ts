@@ -74,6 +74,7 @@ function defaultData(): AppData {
       blur: 0,
       font: "rounded",
       showDock: true,
+      ai: { provider: "deepseek" },
       sceneMotion: true,
       sceneParallax: true,
       cellSize: 150,
@@ -82,6 +83,7 @@ function defaultData(): AppData {
       aiRefreshMin: 15,
       feedRefreshMin: 30,
     },
+    customWidgets: [],
     cache: { usage: {}, feeds: {} },
   };
 }

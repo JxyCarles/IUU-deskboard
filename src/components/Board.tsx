@@ -4,7 +4,7 @@ import { gridState, resolve, snapSize, spanOf, type Rect } from "../layout";
 import { patch, remove, setState, useStore } from "../store";
 import type { WidgetInst, WidgetSize } from "../types";
 import { useNav } from "../widgets/common";
-import { SIZE_LABEL, widgetDef } from "../widgets/registry";
+import { SIZE_LABEL, widgetDefOf } from "../widgets/registry";
 import Sheet from "./Sheet";
 
 const GAP = 16;
@@ -32,7 +32,7 @@ interface Menu {
 }
 
 function ConfigSheet({ w, onClose }: { w: WidgetInst; onClose: () => void }) {
-  const def = widgetDef(w.type);
+  const def = widgetDefOf(w);
   return (
     <Sheet title={`编辑「${def.name}」小组件`} onClose={onClose} size="sm">
       <div className="field">
@@ -79,7 +79,7 @@ function ContextMenu({
 }) {
   const nav = useNav();
   const w = widgets.find((x) => x.id === menu.id);
-  const def = w && widgetDef(w.type);
+  const def = w && widgetDefOf(w);
 
   useEffect(() => {
     const close = () => onClose();
@@ -224,7 +224,7 @@ export default function Board({ editing, setEditing, onAdd }: { editing: boolean
       } else {
         const wantW = Math.max(1, Math.round((cur.orig.w * unit + dx) / unit));
         const wantH = Math.max(1, Math.round((cur.orig.h * unit + dy) / unit));
-        const def = widgetDef(widgets.find((x) => x.id === cur.id)!.type);
+        const def = widgetDefOf(widgets.find((x) => x.id === cur.id)!);
         const size = snapSize(wantW, wantH, def.sizes, cols);
         const [sw, sh] = spanOf(size, cols);
         next.size = size;
@@ -290,7 +290,7 @@ export default function Board({ editing, setEditing, onAdd }: { editing: boolean
       suppressClick.current = false;
       return;
     }
-    const def = widgetDef(w.type);
+    const def = widgetDefOf(w);
     if (!editing && def.page) nav.open(def.page);
   };
 
@@ -324,7 +324,7 @@ export default function Board({ editing, setEditing, onAdd }: { editing: boolean
         {widgets.map((w) => {
           const r = rects.find((x) => x.id === w.id);
           if (!r) return null;
-          const def = widgetDef(w.type);
+          const def = widgetDefOf(w);
           const isDrag = drag?.moved && drag.id === w.id;
           const view: WidgetInst = isDrag && drag.mode === "resize" ? { ...w, size: drag.size } : w;
           const style: React.CSSProperties = isDrag && drag.mode === "move" ? { ...box(drag.orig), left: drag.orig.x * unit + drag.dx, top: drag.orig.y * unit + drag.dy } : box(r);

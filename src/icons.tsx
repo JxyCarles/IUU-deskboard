@@ -65,6 +65,12 @@ const PATHS = {
       <path d="M6.5 7.7v8.6M17.5 10.7c0 4-4 4.3-11 5.6" />
     </>
   ),
+  studio: (
+    <>
+      <path d="M4 20L14.5 9.5" />
+      <path d="M16 3.5v3M16 12.5v-1M11.5 8h1M19.5 8h1M18.5 5.5l.8-.8M13.5 5.5l-.8-.8M18.5 10.5l.8.8" />
+    </>
+  ),
   plus: <path d="M12 5v14M5 12h14" />,
   refresh: (
     <>
@@ -95,6 +101,9 @@ const PATHS = {
 };
 
 export type IconName = keyof typeof PATHS;
+
+/** 扩展规范里允许自定义小组件使用的图标 */
+export const ICON_LIST: IconName[] = ["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "github", "settings", "image", "grid", "studio"];
 
 export function Icon({ name, size = 18, stroke = 1.8 }: { name: IconName; size?: number; stroke?: number }) {
   return (

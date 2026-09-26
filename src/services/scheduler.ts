@@ -3,6 +3,7 @@ import { isTauri, notify } from "../api";
 import { getState } from "../store";
 import { toMin, today } from "../utils";
 import { refreshAllFeeds } from "./feeds";
+import { refreshDueCustom } from "./customWidgets";
 import { refreshAllTrending } from "./github";
 import { refreshAllProviders } from "./providers";
 
@@ -40,6 +41,7 @@ export function startScheduler() {
       refreshAllFeeds();
       refreshAllTrending();
     }
+    refreshDueCustom();
     checkReminders();
   };
   tick();

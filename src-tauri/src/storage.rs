@@ -45,3 +45,18 @@ pub fn data_dir(app: AppHandle) -> Result<String, String> {
         .map(|p| p.display().to_string())
         .unwrap_or_default())
 }
+
+/// 批量导入前备份一份 data.json 到 backups/，返回备份文件路径
+#[tauri::command]
+pub fn backup_data(app: AppHandle, tag: String) -> Result<String, String> {
+    let path = data_path(&app)?;
+    let dir = path.parent().unwrap().join("backups");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
+    let safe: String = tag.chars().filter(|c| c.is_alphanumeric() || *c == '-').collect();
+    let dest = dir.join(format!("data-{stamp}-{safe}.json"));
+    if path.exists() {
+        fs::copy(&path, &dest).map_err(|e| e.to_string())?;
+    }
+    Ok(dest.display().to_string())
+}

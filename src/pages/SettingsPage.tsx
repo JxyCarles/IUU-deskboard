@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { call, isTauri } from "../api";
 import { FONTS, loadAllFonts, schemeOf } from "../fonts";
 import { Icon } from "../icons";
+import { AI_PROVIDERS, aiText } from "../services/ai";
 import { flushSave, setSettings, useStore } from "../store";
+import type { AISettings } from "../types";
 import { assetUrl, loadScene, type SceneProp } from "../scene";
 import { currentPalette, PRESETS } from "../theme";
 import { applyWallpaper, importToLibrary, removeFromLibrary, updateBackground } from "../wallpapers";
@@ -351,6 +353,90 @@ function WindowSizeRow() {
   );
 }
 
+/** 创造台里「AI 整理」「AI 生成小组件」用哪个 AI */
+function AISection() {
+  const ai = useStore((s) => s.settings.ai);
+  const meta = AI_PROVIDERS[ai.provider];
+  const needsOwnKey = ai.provider === "claude" || ai.provider === "custom";
+  const secret = ai.provider === "claude" ? "ai:claude" : "ai:custom";
+  const [has, setHas] = useState<boolean | null>(null);
+  const [key, setKey] = useState("");
+  const [test, setTest] = useState<{ text: string; err?: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setTest(null);
+    const name = ai.provider === "deepseek" ? "provider:deepseek" : ai.provider === "glm" ? "provider:glm" : secret;
+    if (isTauri) call<boolean>("has_secret", { name }).then(setHas);
+  }, [ai.provider]);
+
+  const set = (p: Partial<AISettings>) => setSettings({ ai: { ...ai, ...p } });
+  const saveKey = async () => {
+    await call("set_secret", { name: secret, value: key });
+    setHas(!!key.trim());
+    setKey("");
+  };
+  const runTest = async () => {
+    setBusy(true);
+    setTest(null);
+    try {
+      const t = await aiText('只输出 JSON：{"ok": true, "model": "你的模型名"}', "测试连接", true);
+      setTest({ text: "连接成功：" + t.slice(0, 120) });
+    } catch (e) {
+      setTest({ text: String(e instanceof Error ? e.message : e), err: true });
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="card">
+      <h4>AI 服务</h4>
+      <p className="muted small">用于创造台的「AI 整理」和「AI 生成小组件」。</p>
+      <div className="seg">
+        {(Object.keys(AI_PROVIDERS) as AISettings["provider"][]).map((p) => (
+          <button key={p} className={ai.provider === p ? "on" : ""} onClick={() => setSettings({ ai: { provider: p, baseUrl: ai.baseUrl } })}>
+            {AI_PROVIDERS[p].name}
+          </button>
+        ))}
+      </div>
+      <div className="muted small">
+        {meta.keyFrom}
+        {!needsOwnKey && has === false && <b className="warn"> · 还没有保存 Key</b>}
+        {!needsOwnKey && has && <b className="ok"> · Key 已保存</b>}
+      </div>
+      {ai.provider === "custom" && (
+        <label className="field">
+          <span>接口地址（到 /v1 为止，不含 /chat/completions）</span>
+          <input className="input" placeholder="https://api.openai.com/v1" value={ai.baseUrl ?? ""} onChange={(e) => set({ baseUrl: e.target.value })} />
+        </label>
+      )}
+      <label className="field">
+        <span>模型{meta.defaultModel ? `（留空使用 ${meta.defaultModel}）` : ""}</span>
+        <input className="input" placeholder={meta.defaultModel || "例如 gpt-5、qwen-max"} value={ai.model ?? ""} onChange={(e) => set({ model: e.target.value })} />
+      </label>
+      {needsOwnKey && (
+        <div className="field">
+          <span>
+            API Key {has ? <b className="ok">● 已保存</b> : <b className="warn">● 未填写</b>}
+          </span>
+          <div className="row">
+            <input type="password" className="input grow" placeholder="保存在 Windows 凭据管理器" value={key} onChange={(e) => setKey(e.target.value)} />
+            <button className="btn" disabled={!key} onClick={saveKey}>
+              保存
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="row">
+        <button className="btn" disabled={busy || !isTauri} onClick={runTest}>
+          {busy ? "测试中…" : "测试连接"}
+        </button>
+        {test && <span className={test.err ? "err" : "ok small"}>{test.text}</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const s = useStore((x) => x.settings);
   const [autostart, setAutostart] = useState<boolean | null>(null);
@@ -378,6 +464,7 @@ export default function SettingsPage() {
     <div className="settings">
       <AppearanceSection />
       <FontSection />
+      <AISection />
 
       <div className="card">
         <h4>窗口</h4>

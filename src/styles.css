@@ -3123,3 +3123,236 @@ html.resizing .board.ready .widget {
 .bigcal-c.off.sel {
   box-shadow: inset 0 3px 0 var(--red), inset 0 0 0 2px var(--blue);
 }
+
+/* ============ 创造台 ============ */
+.studio {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+.studio-tabs {
+  align-self: flex-start;
+}
+.studio-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.studio-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+.mono {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12.5px;
+}
+.studio-text {
+  flex: 1;
+  min-height: 260px;
+  resize: none;
+  white-space: pre;
+  overflow: auto;
+}
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: inherit;
+}
+.placeholder.small {
+  min-height: 120px;
+  font-size: 13px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+}
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plan-sec h4 {
+  margin: 0 0 6px;
+}
+.plan-card {
+  background: var(--panel-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plan-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.plan-tag.merge {
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+  color: var(--orange);
+}
+.plan-items {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.plan-item {
+  font-size: 13px;
+  padding: 1px 0;
+}
+.plan-item.dup {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+.studio-stage {
+  min-height: 200px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  padding: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 35%, #000), color-mix(in srgb, var(--c-news) 30%, #000));
+}
+.studio-stage .widget.preview {
+  position: relative;
+}
+.installed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.installed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.spec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+.spec-body {
+  flex: 1;
+  overflow: auto;
+  background: var(--panel-2);
+  border-radius: 14px;
+  padding: 6px 22px 22px;
+}
+.spec-body table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.spec-body th,
+.spec-body td {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.spec-body code {
+  font-size: 12px;
+}
+.spec-body pre code {
+  background: none;
+  padding: 0;
+}
+.gallery-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 4px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+/* 自定义小组件 */
+.cw {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.cw-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.cw-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.cw-row.link {
+  cursor: pointer;
+}
+.cw-row.link:hover .cw-title {
+  color: var(--accent);
+}
+.cw-body {
+  flex: 1;
+  min-width: 0;
+}
+.cw-title {
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cw-sub {
+  font-size: 11.5px;
+  color: var(--text-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cw-value {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-display);
+}
+.cw-stat {
+  justify-content: flex-start;
+}
+.cw-stat-value {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-top: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cw-stat.size-m .cw-stat-value {
+  font-size: 44px;
+}
+.cw-stat-label {
+  font-size: 12px;
+  color: var(--text-2);
+}
+@media (max-width: 900px) {
+  .studio-split {
+    grid-template-columns: 1fr;
+  }
+}

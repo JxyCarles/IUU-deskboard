@@ -9,7 +9,8 @@ export type WidgetType =
   | "project"
   | "ai"
   | "news"
-  | "github";
+  | "github"
+  | "custom";
 
 export interface WidgetInst {
   id: string;
@@ -168,6 +169,39 @@ export interface Background {
   palette?: Palette; // 从壁纸提取的配色
 }
 
+export interface AISettings {
+  provider: "deepseek" | "glm" | "claude" | "custom";
+  model?: string; // 空表示用默认模型
+  baseUrl?: string; // 仅 custom：OpenAI 兼容接口地址，如 https://api.openai.com/v1
+}
+
+/** 自定义小组件，见 docs/扩展规范.md「deskboard.widget/v1」 */
+export interface WidgetSpec {
+  format: "deskboard.widget/v1";
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  source: {
+    type: "json" | "rss";
+    url: string;
+    headers?: Record<string, string>;
+    auth?: { header: string; prefix?: string; secret: string };
+    refreshMinutes?: number;
+  };
+  map: { items?: string; title: string; subtitle?: string; value?: string; link?: string; label?: string };
+  display?: { type?: "list" | "stat"; rank?: boolean; limit?: number; sizes?: WidgetSize[] };
+}
+
+export interface CustomItem {
+  title: string;
+  subtitle?: string;
+  value?: string;
+  link?: string;
+  label?: string;
+}
+
 export interface Settings {
   theme: "auto" | "light" | "dark"; // auto = 按壁纸亮度
   background: Background;
@@ -181,6 +215,7 @@ export interface Settings {
   font: string;
   customFont?: { name: string; file: string };
   showDock: boolean;
+  ai: AISettings; // 创造台里 AI 整理 / 生成用的服务
   sceneMotion: boolean; // 场景壁纸动效
   sceneParallax: boolean; // 场景壁纸鼠标视差
   cellSize: number; // 网格最小格子边长 px
@@ -202,15 +237,17 @@ export interface AppData {
   providers: ProviderConf[];
   feeds: FeedSource[];
   settings: Settings;
+  customWidgets: WidgetSpec[];
   cache: {
     usage: Record<string, UsageSnap>;
     feeds: Record<string, FeedCache>;
     claudeCode?: { ts: number; rows: ClaudeCodeRow[]; error?: string };
     github?: Record<string, { ts: number; items: GithubRepo[]; error?: string }>;
+    custom?: Record<string, { ts: number; items: CustomItem[]; error?: string }>;
   };
 }
 
-export type PageKey = "notes" | "calendar" | "tasks" | "projects" | "ai" | "news" | "github" | "settings";
+export type PageKey = "notes" | "calendar" | "tasks" | "projects" | "ai" | "news" | "github" | "studio" | "settings";
 
 export interface GithubRepo {
   name: string;

@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { Icon, type IconName } from "../icons";
 import type { PageKey, WidgetInst } from "../types";
 
-const ICON_NAMES = new Set<string>(["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "github", "settings"]);
+const ICON_NAMES = new Set<string>(["clock", "calendar", "agenda", "tasks", "notes", "project", "ai", "news", "github", "settings", "image", "grid", "studio"]);
 
 export interface WidgetProps {
   w: WidgetInst;

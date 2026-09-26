@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNav } from "../widgets/common";
 import { patch, remove, upsert, useStore } from "../store";
 import type { ItemStatus, Project, ProjectItem } from "../types";
 import { COLORS, EMOJIS, md, today, uid } from "../utils";
@@ -196,6 +197,7 @@ function ProjectDetail({ p }: { p: Project }) {
 
 export default function ProjectsPage({ arg }: { arg?: string }) {
   const projects = useStore((s) => s.projects);
+  const nav = useNav();
   const [sel, setSel] = useState<string | undefined>(arg ?? projects[0]?.id);
   const cur = projects.find((p) => p.id === sel);
 
@@ -204,6 +206,9 @@ export default function ProjectsPage({ arg }: { arg?: string }) {
       <aside className="split-side">
         <div className="side-tools">
           <b className="grow">项目</b>
+          <button className="btn" title="粘贴 JSON 或任意材料，让 AI 整理成项目" onClick={() => nav.open("studio", "import")}>
+            ✨ 导入
+          </button>
           <button
             className="btn primary"
             onClick={() => {
