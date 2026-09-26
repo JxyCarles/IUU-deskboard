@@ -177,3 +177,7 @@ docs/扩展规范.md         导入数据与自定义小组件的 JSON 规范
 - AI 早报内容来自 [橘鸦 AI 早报](https://daily.juya.uk/)
 - 字体：霞鹜文楷、站酷快乐体、站酷小薇、Nunito、Quicksand、Lora、Outfit（均为 SIL OFL 开源字体）
 - 农历数据：[lunar-javascript](https://github.com/6tail/lunar-javascript)
+
+## 许可证
+
+[MIT](LICENSE) © JxyCarles。可以自由使用、修改和再发布，请保留原作者署名。
