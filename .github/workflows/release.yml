@@ -1,0 +1,39 @@
+# 推送 v* 标签（如 v0.3.0）时，在 GitHub 的 Windows 机器上打包安装程序，
+# 并创建一个草稿 Release，把 .exe 安装包挂上去。检查无误后在网页上点「Publish」。
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 桌面看板 ${{ github.ref_name }}
+          releaseBody: 下载下方的 `桌面看板_x.y.z_x64-setup.exe` 安装即可。安装说明见 README。
+          releaseDraft: true
+          prerelease: false
