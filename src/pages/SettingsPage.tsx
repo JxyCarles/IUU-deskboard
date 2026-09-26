@@ -353,6 +353,45 @@ function WindowSizeRow() {
   );
 }
 
+/** AI 简报：关注方向、自动生成 */
+function BriefSettings() {
+  const b = useStore((s) => s.settings.brief);
+  const set = (p: Partial<typeof b>) => setSettings({ brief: { ...b, ...p } });
+  return (
+    <>
+      <label className="field">
+        <span>我关注的方向（资讯和 GitHub 简报会优先整理这些内容）</span>
+        <textarea
+          className="input"
+          rows={2}
+          placeholder="例如：AI Agent、开源大模型、Rust、前端工程化、桌面应用开发"
+          value={b.interests}
+          onChange={(e) => set({ interests: e.target.value })}
+        />
+      </label>
+      <label className="set-row">
+        <div>
+          <b>自动生成简报</b>
+          <div className="muted small">资讯或 GitHub 热门更新后，简报过期就自动整理一次（每次花费不到一分钱）</div>
+        </div>
+        <span className="row">
+          <select className="input" value={b.hours} disabled={!b.auto} onChange={(e) => set({ hours: Number(e.target.value) })}>
+            {[1, 3, 6, 12, 24].map((h) => (
+              <option key={h} value={h}>
+                每 {h} 小时
+              </option>
+            ))}
+          </select>
+          <span className="switch">
+            <input type="checkbox" checked={b.auto} onChange={() => set({ auto: !b.auto })} />
+            <span />
+          </span>
+        </span>
+      </label>
+    </>
+  );
+}
+
 /** 创造台里「AI 整理」「AI 生成小组件」用哪个 AI */
 function AISection() {
   const ai = useStore((s) => s.settings.ai);
@@ -391,7 +430,7 @@ function AISection() {
   return (
     <div className="card">
       <h4>AI 服务</h4>
-      <p className="muted small">用于创造台的「AI 整理」和「AI 生成小组件」。</p>
+      <p className="muted small">用于资讯 / GitHub 的 AI 简报，以及创造台的「AI 整理」「AI 生成小组件」。</p>
       <div className="seg">
         {(Object.keys(AI_PROVIDERS) as AISettings["provider"][]).map((p) => (
           <button key={p} className={ai.provider === p ? "on" : ""} onClick={() => setSettings({ ai: { provider: p, baseUrl: ai.baseUrl } })}>
@@ -427,6 +466,7 @@ function AISection() {
           </div>
         </div>
       )}
+      <BriefSettings />
       <div className="row">
         <button className="btn" disabled={busy || !isTauri} onClick={runTest}>
           {busy ? "测试中…" : "测试连接"}

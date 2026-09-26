@@ -202,6 +202,20 @@ export interface CustomItem {
   label?: string;
 }
 
+/** AI 简报（资讯 / GitHub 热门） */
+export interface BriefPoint {
+  text: string;
+  tag?: string; // 热点 / 关注 / 好玩 / 工具
+  link?: string;
+}
+
+export interface Brief {
+  ts: number;
+  headline: string;
+  points: BriefPoint[];
+  error?: string;
+}
+
 export interface Settings {
   theme: "auto" | "light" | "dark"; // auto = 按壁纸亮度
   background: Background;
@@ -216,6 +230,7 @@ export interface Settings {
   customFont?: { name: string; file: string };
   showDock: boolean;
   ai: AISettings; // 创造台里 AI 整理 / 生成用的服务
+  brief: { interests: string; auto: boolean; hours: number }; // AI 简报：关注方向、是否自动生成、多久更新一次
   sceneMotion: boolean; // 场景壁纸动效
   sceneParallax: boolean; // 场景壁纸鼠标视差
   cellSize: number; // 网格最小格子边长 px
@@ -244,6 +259,7 @@ export interface AppData {
     claudeCode?: { ts: number; rows: ClaudeCodeRow[]; error?: string };
     github?: Record<string, { ts: number; items: GithubRepo[]; error?: string }>;
     custom?: Record<string, { ts: number; items: CustomItem[]; error?: string }>;
+    briefs?: Record<string, Brief>;
   };
 }
 

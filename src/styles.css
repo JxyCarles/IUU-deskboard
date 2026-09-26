@@ -3356,3 +3356,314 @@ html.resizing .board.ready .widget {
     grid-template-columns: 1fr;
   }
 }
+
+/* ============ 小组件内滚动 ============
+ * 鼠标悬停时用滚轮滚动，或拖右侧细滚动条；滚到头不会带着整个看板一起滚 */
+.w-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  margin-right: -10px;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
+}
+.w-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.w-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 5px;
+}
+.widget:hover .w-scroll::-webkit-scrollbar-thumb {
+  background: var(--track);
+}
+.w-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3) !important;
+}
+.widget.editing .w-scroll {
+  overflow: hidden;
+}
+.news-scroll.cols-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 18px;
+  align-content: start;
+}
+.news-scroll.cols-2 .brief {
+  grid-column: 1 / -1;
+}
+
+/* ============ AI 简报 ============ */
+.brief {
+  margin: 2px 0 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.brief-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.brief-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.brief-headline {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.brief-point {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12.5px;
+  line-height: 1.5;
+  min-width: 0;
+}
+.brief-point.link {
+  cursor: pointer;
+}
+.brief-point.link:hover .brief-text {
+  color: var(--accent);
+}
+.brief-point.compact .brief-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.brief-text {
+  min-width: 0;
+}
+.brief-tag {
+  flex: none;
+  font-size: 10.5px;
+  padding: 0 5px;
+  border-radius: 5px;
+  line-height: 17px;
+  background: var(--track);
+  color: var(--text-2);
+}
+.brief-tag.b-focus {
+  background: var(--accent);
+  color: #fff;
+}
+.brief-tag.b-hot {
+  background: color-mix(in srgb, var(--red) 22%, transparent);
+  color: var(--red);
+}
+.brief-tag.b-fun {
+  background: color-mix(in srgb, var(--orange) 22%, transparent);
+  color: var(--orange);
+}
+.brief-tag.b-tool {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: var(--green);
+}
+.brief-full h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  line-height: 1.4;
+}
+.brief-full-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+.brief-full-list .brief-point {
+  font-size: 14.5px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+.link-btn.tiny {
+  font-size: 11px;
+}
+
+/* 小组件设置：内容排序 */
+.sec-order {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sec-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-size: 13px;
+}
+.sec-row.off {
+  opacity: 0.5;
+}
+
+/* ============ 项目小组件（新版） ============ */
+.pj-counts {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  flex: none !important;
+}
+.pj-counts i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.pj-counts b {
+  color: var(--text);
+  font-family: var(--font-display);
+}
+.pj-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pj-group-h {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin: 2px 0 2px;
+}
+.pj-group-h span {
+  color: var(--text-3);
+  margin-left: 2px;
+}
+.pj-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.pj-group .pj-row:last-child {
+  border-bottom: none;
+}
+.pj-mark {
+  flex: none;
+  width: 16px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.pj-mark:hover {
+  background: var(--hover);
+}
+.pj-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pj-text.one {
+  -webkit-line-clamp: 1;
+}
+.pj-text:hover {
+  color: var(--accent);
+}
+.pj-row.st-done .pj-text {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+.pj-row.st-doing .pj-text {
+  font-weight: 600;
+}
+.pj-due {
+  flex: none;
+  font-size: 10.5px;
+  line-height: 18px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--track);
+  color: var(--text-2);
+}
+.pj-due.late {
+  background: color-mix(in srgb, var(--red) 20%, transparent);
+  color: var(--red);
+}
+/* 超大尺寸三列：列高随内容，条目是小卡片 */
+.pj-xl .pj-cols {
+  align-items: start;
+}
+.pj-xl .pj-col {
+  background: transparent;
+  padding: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pj-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-right: -6px;
+  padding-right: 4px;
+}
+.pj-card {
+  background: var(--hover);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.pj-card .pj-row {
+  border-bottom: none;
+}
+.pj-empty {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+  padding: 10px 0;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+.pj-logs {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  flex: none !important;
+}
+/* 资讯小组件（可滚动版）条目：标题一行 + 右侧时间 */
+.news-scroll .news-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+}
+.news-scroll .news-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.news-scroll .news-item:hover .news-title {
+  color: var(--accent);
+}
+.news-scroll .news-sec {
+  margin-bottom: 8px;
+}

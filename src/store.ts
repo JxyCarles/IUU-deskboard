@@ -75,6 +75,7 @@ function defaultData(): AppData {
       font: "rounded",
       showDock: true,
       ai: { provider: "deepseek" },
+      brief: { interests: "", auto: true, hours: 6 },
       sceneMotion: true,
       sceneParallax: true,
       cellSize: 150,

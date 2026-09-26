@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import type { IconName } from "../icons";
+import { orderSections } from "../services/brief";
 import { LANGUAGES } from "../services/github";
 import { getState, patch, useStore } from "../store";
 import type { PageKey, WidgetInst, WidgetSize, WidgetType } from "../types";
@@ -8,9 +9,9 @@ import AIWidget from "./AIWidget";
 import CalendarWidget from "./CalendarWidget";
 import ClockWidget from "./ClockWidget";
 import CustomWidget, { specColor, specIcon } from "./CustomWidget";
-import GithubWidget from "./GithubWidget";
+import GithubWidget, { GITHUB_SECTIONS } from "./GithubWidget";
 import type { WidgetProps } from "./common";
-import NewsWidget from "./NewsWidget";
+import NewsWidget, { newsSections } from "./NewsWidget";
 import NotesWidget from "./NotesWidget";
 import ProjectWidget from "./ProjectWidget";
 import TasksWidget from "./TasksWidget";
@@ -72,6 +73,7 @@ const AIConfig: FC<{ w: WidgetInst }> = ({ w }) => {
 
 const GithubConfig: FC<{ w: WidgetInst }> = ({ w }) => (
   <>
+    <SectionOrder w={w} all={GITHUB_SECTIONS} />
     <Select
       w={w}
       k="since"
@@ -95,10 +97,53 @@ const GithubConfig: FC<{ w: WidgetInst }> = ({ w }) => (
   </>
 );
 
+/** 小组件里的内容块排序 / 显示（存在 config.order、config.hide） */
+function SectionOrder({ w, all }: { w: WidgetInst; all: { id: string; name: string }[] }) {
+  const ids = all.map((x) => x.id);
+  const order = orderSections(ids, w.config.order);
+  const hidden = new Set((w.config.hide ?? "").split(",").filter(Boolean));
+  const save = (o: string[], h: Set<string>) => patch("widgets", w.id, { config: { ...w.config, order: o.join(","), hide: [...h].join(",") || undefined } });
+  const move = (i: number, d: number) => {
+    const o = [...order];
+    const j = i + d;
+    if (j < 0 || j >= o.length) return;
+    [o[i], o[j]] = [o[j], o[i]];
+    save(o, hidden);
+  };
+  const toggle = (id: string) => {
+    const h = new Set(hidden);
+    if (h.has(id)) h.delete(id);
+    else h.add(id);
+    save(order, h);
+  };
+  return (
+    <div className="field">
+      <span>内容顺序（上面的显示在小组件最前面）</span>
+      <div className="sec-order">
+        {order.map((id, i) => (
+          <div key={id} className={"sec-row" + (hidden.has(id) ? " off" : "")}>
+            <input type="checkbox" checked={!hidden.has(id)} onChange={() => toggle(id)} title="显示" />
+            <span className="grow">{all.find((x) => x.id === id)?.name ?? id}</span>
+            <button className="icon-btn sm" disabled={i === 0} onClick={() => move(i, -1)} title="上移">
+              ↑
+            </button>
+            <button className="icon-btn sm" disabled={i === order.length - 1} onClick={() => move(i, 1)} title="下移">
+              ↓
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const NewsConfig: FC<{ w: WidgetInst }> = ({ w }) => {
   const feeds = useStore((s) => s.feeds);
   return (
-    <Select w={w} k="sourceId" label="资讯源" options={[{ value: "", label: "全部资讯源" }, ...feeds.map((f) => ({ value: f.id, label: f.name }))]} />
+    <>
+      <Select w={w} k="sourceId" label="资讯源" options={[{ value: "", label: "全部资讯源" }, ...feeds.map((f) => ({ value: f.id, label: f.name }))]} />
+      <SectionOrder w={w} all={newsSections(feeds, w.config.sourceId)} />
+    </>
   );
 };
 

@@ -1,16 +1,13 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo } from "react";
+import BriefBlock from "../components/BriefBlock";
+import { ensureBrief, generateBrief, newsBriefKey, newsInput, orderSections } from "../services/brief";
 import { mergedFeed, openReader, sourceColor, type MergedItem } from "../services/feeds";
 import { useStore } from "../store";
 import type { FeedSource } from "../types";
 import { relTime } from "../utils";
 import { Empty, stop, useNav, WHead, type WidgetProps } from "./common";
 
-interface Group {
-  source: FeedSource;
-  items: MergedItem[];
-}
-
-function Section({ g, max, color }: { g: Group; max: number; color: string }) {
+function Section({ source, items, max, color }: { source: FeedSource; items: MergedItem[]; max: number; color: string }) {
   const nav = useNav();
   return (
     <div className="news-sec">
@@ -19,15 +16,15 @@ function Section({ g, max, color }: { g: Group; max: number; color: string }) {
         style={{ color }}
         onClick={(e) => {
           stop(e);
-          nav.open("news", g.source.id);
+          nav.open("news", source.id);
         }}
-        title={`查看「${g.source.name}」的全部资讯`}
+        title={`查看「${source.name}」的全部资讯`}
       >
         <i style={{ background: color }} />
-        {g.source.name}
+        {source.name}
         <span className="news-sec-more">›</span>
       </button>
-      {g.items.slice(0, max).map((it, i) => (
+      {items.slice(0, max).map((it, i) => (
         <div
           key={it.link + i}
           className="news-item"
@@ -41,34 +38,38 @@ function Section({ g, max, color }: { g: Group; max: number; color: string }) {
           {it.time > 0 && <span className="news-time">{relTime(it.time)}</span>}
         </div>
       ))}
-      {g.items.length === 0 && <div className="muted tiny">暂无内容</div>}
+      {items.length === 0 && <div className="muted tiny">暂无内容</div>}
     </div>
   );
+}
+
+/** 小组件里的内容块：AI 简报 + 各资讯来源。顺序和显示在小组件设置里调整 */
+export function newsSections(feeds: FeedSource[], sourceId?: string) {
+  return [
+    { id: "brief", name: "✨ AI 简报" },
+    ...feeds.filter((f) => f.enabled && (!sourceId || f.id === sourceId)).map((f) => ({ id: f.id, name: f.name })),
+  ];
 }
 
 export default function NewsWidget({ w }: WidgetProps) {
   const feeds = useStore((s) => s.feeds);
   const cache = useStore((s) => s.cache.feeds);
-  // 按小组件实际高度决定能完整放下几个来源，避免最后一组被截掉一半
-  const box = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(0);
+  const sourceId = w.config.sourceId;
+  const key = newsBriefKey(sourceId);
 
-  // 按资讯源分组，顺序与「管理」里的排序一致
-  const groups = useMemo<Group[]>(() => {
-    const src = feeds.filter((f) => f.enabled && (!w.config.sourceId || f.id === w.config.sourceId));
-    return src.map((f) => ({ source: f, items: mergedFeed([f], cache) }));
-  }, [feeds, cache, w.config.sourceId]);
+  const sections = useMemo(
+    () => orderSections(newsSections(feeds, sourceId).map((x) => x.id), w.config.order, w.config.hide),
+    [feeds, sourceId, w.config.order, w.config.hide],
+  );
+  const hasItems = feeds.some((f) => f.enabled && (!sourceId || f.id === sourceId) && (cache[f.id]?.items.length ?? 0) > 0);
+  const showBrief = sections.includes("brief");
 
-  const withItems = groups.filter((g) => g.items.length > 0);
-  const hasItems = withItems.length > 0;
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setHeight(el.clientHeight));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [hasItems]);
-  if (groups.length === 0) return <Empty>在资讯页面里添加资讯源</Empty>;
+  // 资讯到了、简报过期就自动整理一次（设置里可关）
+  useEffect(() => {
+    if (showBrief && hasItems) ensureBrief(key, "news", newsInput(sourceId));
+  }, [showBrief, hasItems, key, cache]);
+
+  if (!feeds.some((f) => f.enabled)) return <Empty>在资讯页面里添加资讯源</Empty>;
   if (!hasItems) {
     return (
       <div className="news-l">
@@ -78,17 +79,18 @@ export default function NewsWidget({ w }: WidgetProps) {
     );
   }
 
-  // 各尺寸显示几个来源、每个来源几条
-  const layout = { s: { cols: 1, items: 3 }, m: { cols: 1, items: 3 }, l: { cols: 1, items: 3 }, xl: { cols: 3, items: 4 } }[w.size];
-  const SEC_H = 26 + layout.items * 25 + 6; // 来源标题 + 条目 + 间距
-  const rows = Math.max(1, Math.floor((height + 6) / SEC_H));
-  const shown = withItems.slice(0, rows * layout.cols);
+  const per = { s: 3, m: 4, l: 6, xl: 6 }[w.size];
+  const briefMax = { s: 1, m: 2, l: 3, xl: 4 }[w.size];
+  const regen = () => generateBrief(key, "news", newsInput(sourceId));
 
   return (
-    <div ref={box} className={`news-groups cols-${layout.cols}`}>
-      {shown.map((g) => (
-        <Section key={g.source.id} g={g} max={layout.items} color={sourceColor(feeds, g.source.id)} />
-      ))}
+    <div className={"w-scroll news-scroll" + (w.size === "xl" ? " cols-2" : "")}>
+      {sections.map((id) => {
+        if (id === "brief") return <BriefBlock key="brief" briefKey={key} title={sourceId ? `${feeds.find((f) => f.id === sourceId)?.name ?? "资讯"} 简报` : "资讯简报"} max={briefMax} regen={regen} />;
+        const f = feeds.find((x) => x.id === id);
+        if (!f) return null;
+        return <Section key={id} source={f} items={mergedFeed([f], cache)} max={per} color={sourceColor(feeds, f.id)} />;
+      })}
     </div>
   );
 }

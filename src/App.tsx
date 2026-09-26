@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { call, currentWindow, isTauri } from "./api";
 import AddWidgetSheet from "./components/AddWidgetSheet";
 import Board from "./components/Board";
+import { BriefSheet } from "./components/BriefBlock";
 import FeedReader from "./components/FeedReader";
 import SceneWall from "./components/SceneWall";
 import Sheet from "./components/Sheet";
@@ -251,6 +252,7 @@ export default function App() {
         </Sheet>
       )}
       <FeedReader />
+      <BriefSheet />
     </NavContext.Provider>
   );
 }

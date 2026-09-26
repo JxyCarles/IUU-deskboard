@@ -1,10 +1,10 @@
-import { useStore } from "../store";
-import type { ItemStatus, Project } from "../types";
-import { plain } from "../utils";
+import { patch, useStore } from "../store";
+import type { ItemStatus, Project, ProjectItem } from "../types";
+import { plain, today } from "../utils";
 import { Bar, Empty, Ring, stop, useNav, WHead, type WidgetProps } from "./common";
 
 export const STATUS_META: Record<ItemStatus, { label: string; color: string }> = {
-  todo: { label: "待办", color: "var(--gray)" },
+  todo: { label: "待办", color: "var(--text-2)" },
   doing: { label: "进行中", color: "var(--blue)" },
   done: { label: "已完成", color: "var(--green)" },
 };
@@ -16,7 +16,71 @@ export function projectStats(p: Project) {
   return { ...c, total, pct: total ? (c.done / total) * 100 : 0 };
 }
 
-function Columns({ p, max }: { p: Project; max: number }) {
+const NEXT: Record<ItemStatus, ItemStatus> = { todo: "doing", doing: "done", done: "todo" };
+const MARK: Record<ItemStatus, string> = { todo: "○", doing: "●", done: "✓" };
+
+/** 点状态标记直接推进：待办 → 进行中 → 已完成 → 待办 */
+function cycle(p: Project, it: ProjectItem) {
+  patch("projects", p.id, { items: p.items.map((x) => (x.id === it.id ? { ...x, status: NEXT[x.status] } : x)), updatedAt: Date.now() });
+}
+
+function ItemRow({ p, it, compact }: { p: Project; it: ProjectItem; compact?: boolean }) {
+  const nav = useNav();
+  const late = it.due && it.status !== "done" && it.due < today();
+  return (
+    <div className={"pj-row st-" + it.status}>
+      <button
+        className="pj-mark"
+        style={{ color: STATUS_META[it.status].color }}
+        title={`${STATUS_META[it.status].label}（点击改为「${STATUS_META[NEXT[it.status]].label}」）`}
+        onClick={(e) => {
+          stop(e);
+          cycle(p, it);
+        }}
+      >
+        {MARK[it.status]}
+      </button>
+      <span
+        className={"pj-text" + (compact ? " one" : "")}
+        onClick={(e) => {
+          stop(e);
+          nav.open("projects", p.id);
+        }}
+        title={it.detail ? `${it.text}
+${it.detail}` : it.text}
+      >
+        {it.text}
+      </span>
+      {it.due && <span className={"pj-due" + (late ? " late" : "")}>{it.due.slice(5)}</span>}
+    </div>
+  );
+}
+
+/** 按状态分组的紧凑列表：进行中 → 待办 → 已完成 */
+function ItemList({ p, groups, compact }: { p: Project; groups: ItemStatus[]; compact?: boolean }) {
+  return (
+    <div className="w-scroll pj-list">
+      {groups.map((st) => {
+        const items = p.items.filter((i) => i.status === st);
+        if (!items.length) return null;
+        return (
+          <div key={st} className="pj-group">
+            <div className="pj-group-h" style={{ color: STATUS_META[st].color }}>
+              {STATUS_META[st].label} <span>{items.length}</span>
+            </div>
+            {items.map((it) => (
+              <ItemRow key={it.id} p={p} it={it} compact={compact} />
+            ))}
+          </div>
+        );
+      })}
+      {groups.every((st) => !p.items.some((i) => i.status === st)) && <div className="muted small">没有条目，点小组件打开项目添加</div>}
+    </div>
+  );
+}
+
+/** 超大尺寸：三列看板，条目是小卡片，列高随内容 */
+function Columns({ p }: { p: Project }) {
   return (
     <div className="pj-cols">
       {(["todo", "doing", "done"] as ItemStatus[]).map((st) => {
@@ -26,14 +90,14 @@ function Columns({ p, max }: { p: Project; max: number }) {
             <div className="pj-col-h" style={{ color: STATUS_META[st].color }}>
               {STATUS_META[st].label} <span>{items.length}</span>
             </div>
-            <ul>
-              {items.slice(0, max).map((i) => (
-                <li key={i.id} className={st === "done" ? "done" : ""}>
-                  {i.text}
-                </li>
+            <div className="w-scroll pj-col-body">
+              {items.map((it) => (
+                <div key={it.id} className="pj-card">
+                  <ItemRow p={p} it={it} />
+                </div>
               ))}
-              {items.length > max && <li className="more">还有 {items.length - max} 项…</li>}
-            </ul>
+              {items.length === 0 && <div className="pj-empty">暂无</div>}
+            </div>
           </div>
         );
       })}
@@ -120,22 +184,24 @@ export default function ProjectWidget({ w }: WidgetProps) {
     );
   }
 
+  const counts = (
+    <div className="pj-counts">
+      {(["doing", "todo", "done"] as ItemStatus[]).map((k) => (
+        <span key={k}>
+          <i style={{ background: STATUS_META[k].color }} />
+          {STATUS_META[k].label} <b>{st[k]}</b>
+        </span>
+      ))}
+    </div>
+  );
+
   if (w.size === "m") {
-    const doing = p.items.filter((i) => i.status === "doing");
     return (
       <div className="pj-m">
         {head}
-        <div className="pj-overview clamp-2">{plain(p.overview) || "暂无概况"}</div>
-        <div className="pj-counters">
-          {(["todo", "doing", "done"] as ItemStatus[]).map((k) => (
-            <div key={k}>
-              <b style={{ color: STATUS_META[k].color }}>{st[k]}</b>
-              <span>{STATUS_META[k].label}</span>
-            </div>
-          ))}
-        </div>
-        {doing[0] && <div className="small ellipsis">▸ {doing.map((d) => d.text).join("、")}</div>}
         <Bar percent={st.pct} color={p.color} />
+        {counts}
+        <ItemList p={p} groups={["doing", "todo"]} compact />
       </div>
     );
   }
@@ -144,9 +210,10 @@ export default function ProjectWidget({ w }: WidgetProps) {
     return (
       <div className="pj-l">
         {head}
-        <div className="pj-overview clamp-2">{plain(p.overview) || "暂无概况"}</div>
+        {p.overview.trim() && <div className="pj-overview clamp-2">{plain(p.overview)}</div>}
         <Bar percent={st.pct} color={p.color} />
-        <Columns p={p} max={6} />
+        {counts}
+        <ItemList p={p} groups={["doing", "todo", "done"]} />
       </div>
     );
   }
@@ -157,13 +224,21 @@ export default function ProjectWidget({ w }: WidgetProps) {
         {head}
         <div className="pj-overview clamp-6">{plain(p.overview) || "暂无概况"}</div>
         <Bar percent={st.pct} color={p.color} />
+        {counts}
         {p.logs.length > 0 && (
-          <div className="muted small ellipsis">
-            最新日志：{p.logs[p.logs.length - 1].date} {p.logs[p.logs.length - 1].text}
+          <div className="pj-logs">
+            {p.logs
+              .slice(-2)
+              .reverse()
+              .map((l) => (
+                <div key={l.id} className="muted small ellipsis">
+                  {l.date.slice(5)} {l.text}
+                </div>
+              ))}
           </div>
         )}
       </div>
-      <Columns p={p} max={6} />
+      <Columns p={p} />
     </div>
   );
 }

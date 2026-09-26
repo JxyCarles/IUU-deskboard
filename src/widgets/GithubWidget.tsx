@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { isTauri, openUrl } from "../api";
 import { fmtStars, keyOf, queryOf, refreshTrending, SINCE_LABEL } from "../services/github";
+import BriefBlock from "../components/BriefBlock";
+import { ensureBrief, generateBrief, githubBriefKey, githubInput, orderSections } from "../services/brief";
 import { useStore } from "../store";
 import type { GithubRepo } from "../types";
 import { relTime } from "../utils";
@@ -41,6 +43,12 @@ function Row({ r, rank, compact }: { r: GithubRepo; rank: number; compact?: bool
   );
 }
 
+/** 小组件里可排序的内容块 */
+export const GITHUB_SECTIONS = [
+  { id: "brief", name: "✨ AI 简报" },
+  { id: "list", name: "热门仓库列表" },
+];
+
 export default function GithubWidget({ w }: WidgetProps) {
   const q = queryOf(w.config);
   const key = keyOf(q);
@@ -53,6 +61,10 @@ export default function GithubWidget({ w }: WidgetProps) {
   }, [key]);
 
   const items = data?.items ?? [];
+  const briefOn = !orderSections(GITHUB_SECTIONS.map((x) => x.id), w.config.order, w.config.hide).includes("brief") ? false : w.size !== "s";
+  useEffect(() => {
+    if (briefOn && items.length) ensureBrief(githubBriefKey(key), "github", githubInput(items));
+  }, [briefOn, data?.ts, key]);
   const title = `GitHub ${SINCE_LABEL[q.since]}热门${q.language ? " · " + q.language : ""}`;
   const refresh = async (e: React.MouseEvent) => {
     stop(e);
@@ -96,17 +108,29 @@ export default function GithubWidget({ w }: WidgetProps) {
     );
   }
 
-  const max = w.size === "m" ? 3 : w.size === "l" ? 6 : 12;
+  const sections = orderSections(GITHUB_SECTIONS.map((x) => x.id), w.config.order, w.config.hide);
+  const bkey = githubBriefKey(key);
+  const regen = () => generateBrief(bkey, "github", githubInput(items));
   return (
     <div className="gh-l">
       <WHead icon="github" title={title} color="var(--c-github)" right={right} />
       {data?.error && items.length === 0 && <div className="err tiny">{data.error}</div>}
       {items.length === 0 && !data?.error && <Empty>{isTauri ? "加载中…" : "需要桌面客户端"}</Empty>}
-      <div className={"gh-list" + (w.size === "xl" ? " two-col" : "")}>
-        {items.slice(0, max).map((r, i) => (
-          <Row key={r.name} r={r} rank={i + 1} compact={w.size === "m"} />
-        ))}
-      </div>
+      {items.length > 0 && (
+        <div className="w-scroll">
+          {sections.map((id) =>
+            id === "brief" ? (
+              <BriefBlock key="brief" briefKey={bkey} title={`${title} 简报`} max={w.size === "m" ? 2 : 3} regen={regen} />
+            ) : (
+              <div key="list" className={"gh-list" + (w.size === "xl" ? " two-col" : "")}>
+                {items.slice(0, 25).map((r, i) => (
+                  <Row key={r.name} r={r} rank={i + 1} compact={w.size === "m"} />
+                ))}
+              </div>
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 }
