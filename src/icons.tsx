@@ -105,6 +105,7 @@ const PATHS = {
   close: <path d="M6 6l12 12M18 6L6 18" />,
   minus: <path d="M5 12h14" />,
   square: <rect x="5" y="5" width="14" height="14" rx="2" />,
+  download: <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />,
 };
 
 export type IconName = keyof typeof PATHS;

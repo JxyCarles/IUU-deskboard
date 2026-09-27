@@ -1,6 +1,6 @@
 [package]
 name = "desk-board"
-version = "0.3.0"
+version = "0.3.1"
 description = "桌面看板"
 edition = "2021"
 

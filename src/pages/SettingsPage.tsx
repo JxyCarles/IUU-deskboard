@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { call, isTauri } from "../api";
+import { call, isTauri, openUrl } from "../api";
 import { FONTS, loadAllFonts, schemeOf } from "../fonts";
 import { Icon } from "../icons";
 import { AI_PROVIDERS, aiText } from "../services/ai";
+import { checkUpdate, hasUpdate, RELEASES_URL, useUpdate } from "../services/update";
 import { flushSave, setSettings, useStore } from "../store";
 import type { AISettings } from "../types";
 import { assetUrl, loadScene, type SceneProp } from "../scene";
@@ -477,6 +478,48 @@ function AISection() {
   );
 }
 
+function AboutSection() {
+  const u = useUpdate();
+  useEffect(() => {
+    if (isTauri && !u.checkedAt) checkUpdate();
+  }, []);
+  const status = u.checking
+    ? "正在检查…"
+    : u.error
+      ? "检查失败：" + u.error
+      : hasUpdate(u)
+        ? `发现新版本 ${u.latest}`
+        : u.checkedAt
+          ? "已是最新版本"
+          : "";
+  return (
+    <div className="card">
+      <h4>关于</h4>
+      <div className="set-row">
+        <div>
+          <b>桌面看板 {u.current && "v" + u.current}</b>
+          <div className="muted small">{status || "启动时会自动检查新版本"}</div>
+          {hasUpdate(u) && <div className="muted small">下载新版安装包后直接双击安装即可覆盖旧版，布局、待办等数据都会保留</div>}
+        </div>
+        <span className="row">
+          {hasUpdate(u) ? (
+            <button className="btn primary" onClick={() => openUrl(u.url!)}>
+              下载新版本
+            </button>
+          ) : (
+            <button className="btn" disabled={!isTauri || u.checking} onClick={checkUpdate}>
+              检查更新
+            </button>
+          )}
+          <button className="btn" onClick={() => openUrl(RELEASES_URL)}>
+            发布页
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const s = useStore((x) => x.settings);
   const [autostart, setAutostart] = useState<boolean | null>(null);
@@ -586,6 +629,8 @@ export default function SettingsPage() {
           </button>
         )}
       </div>
+
+      <AboutSection />
     </div>
   );
 }

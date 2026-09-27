@@ -304,6 +304,11 @@ input[type="range"] {
 .pill:hover {
   filter: brightness(1.12);
 }
+.pill.update {
+  background: #16a34a;
+  border-color: transparent;
+  color: #fff;
+}
 .pill.primary {
   background: var(--accent);
   border-color: transparent;

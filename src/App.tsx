@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { call, currentWindow, isTauri } from "./api";
+import { call, currentWindow, isTauri, openUrl } from "./api";
 import AddWidgetSheet from "./components/AddWidgetSheet";
 import Board from "./components/Board";
 import { BriefSheet } from "./components/BriefBlock";
@@ -19,6 +19,7 @@ import SettingsPage from "./pages/SettingsPage";
 import StudioPage from "./pages/StudioPage";
 import TasksPage from "./pages/TasksPage";
 import { startScheduler, useNow } from "./services/scheduler";
+import { hasUpdate, startUpdateCheck, useUpdate } from "./services/update";
 import { setSettings, useStore } from "./store";
 import { buildTheme, isDark, paletteFromPixels, wallpaperCss } from "./theme";
 import type { PageKey, Settings } from "./types";
@@ -120,6 +121,7 @@ function Wallpaper({ s }: { s: Settings }) {
 function TitleBar({ editing, setEditing, onAdd }: { editing: boolean; setEditing: (v: boolean) => void; onAdd: () => void }) {
   const now = useNow(30_000);
   const info = dayInfo(now);
+  const upd = useUpdate();
   const winAction = async (a: "min" | "max" | "hide") => {
     const w = await currentWindow();
     if (!w) return;
@@ -139,6 +141,11 @@ function TitleBar({ editing, setEditing, onAdd }: { editing: boolean; setEditing
         </span>
       </div>
       <div className="tb-right">
+        {hasUpdate(upd) && (
+          <button className="pill update" onClick={() => openUrl(upd.url!)} title="点击打开下载页，下载后直接安装即可覆盖旧版，数据不会丢失">
+            <Icon name="download" size={14} stroke={2.2} /> 新版本 {upd.latest}
+          </button>
+        )}
         {editing && (
           <button className="pill" onClick={onAdd}>
             <Icon name="plus" size={14} stroke={2.4} /> 添加
@@ -173,6 +180,7 @@ export default function App() {
   const nav = useMemo(() => ({ open: (key: PageKey, arg?: string) => setPage({ key, arg }) }), []);
 
   useEffect(() => startScheduler(), []);
+  useEffect(() => startUpdateCheck(), []);
 
   // 调整窗口大小期间暂停壁纸动效和布局动画，减轻重绘压力
   useEffect(() => {
