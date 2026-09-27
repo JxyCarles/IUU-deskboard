@@ -13,9 +13,9 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -34,6 +34,8 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 桌面看板 ${{ github.ref_name }}
-          releaseBody: 下载下方的 `桌面看板_x.y.z_x64-setup.exe` 安装即可。安装说明见 README。
+          releaseBody: 下载下方的 `DeskBoard_x.y.z_x64-setup.exe` 安装即可。安装说明见 README。
+          # GitHub 附件名不支持中文，用英文名
+          assetNamePattern: DeskBoard_[version]_[arch][setup][ext]
           releaseDraft: true
           prerelease: false
