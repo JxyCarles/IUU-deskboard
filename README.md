@@ -92,7 +92,7 @@ Dock 里的「创造台」配合 [docs/扩展规范.md](docs/扩展规范.md) �
 
 | 层 | 技术 | 作用 |
 |---|---|---|
-| 桌面外壳 | [Tauri 2](https://tauri.app/)（Rust） | 生成原生 Windows 程序，安装包只有几 MB；负责窗口、托盘、开机自启、通知 |
+| 桌面外壳 | [Tauri 2](https://tauri.app/)（Rust） | 生成原生 Windows 程序，安装包约 18 MB（大部分是内置字体）；负责窗口、托盘、开机自启、通知 |
 | 界面 | React 19 + TypeScript + Vite | 所有页面和小组件 |
 | 拖拽 | dnd-kit | 编辑模式下的小组件拖动与看板卡片 |
 | 日期 / 农历 | date-fns、lunar-javascript | 日历、节气、法定假日 |
